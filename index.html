@@ -1,0 +1,2063 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Miciro Çağı - İş Yönetim Sistemi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root{--navy:#1e3a5f;--navy-dark:#0d1b2a;--accent:#3b82f6}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter','Segoe UI',Tahoma,sans-serif;background:#f0f2f5;overflow:hidden;height:100vh}
+.sidebar{width:240px;background:linear-gradient(180deg,#0d1b2a 0%,#1b2838 100%);color:white;transition:width .3s,transform .3s;overflow-y:auto;flex-shrink:0;z-index:100}
+.sidebar.collapsed{width:0;transform:translateX(-240px)}
+.sidebar-item{padding:11px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13.5px;transition:all .2s;border-left:3px solid transparent;color:#94a3b8}
+.sidebar-item:hover{background:rgba(255,255,255,.08);color:white}
+.sidebar-item.active{background:rgba(255,255,255,.12);color:#60a5fa;border-left-color:#60a5fa}
+.sidebar-item i{width:20px;text-align:center;font-size:14px}
+.main-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.top-header{background:white;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;gap:10px;flex-shrink:0}
+.tab-bar{background:#e8ecf1;padding:6px 20px;display:flex;align-items:center;gap:4px;overflow-x:auto;flex-shrink:0;min-height:40px}
+.tab-bar::-webkit-scrollbar{height:3px}
+.tab-item{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:6px 6px 0 0;font-size:12.5px;cursor:pointer;white-space:nowrap;transition:all .2s;background:#d1d5db;color:#475569}
+.tab-item:hover{background:#bfdbfe;color:#1e3a5f}
+.tab-item.active{background:white;color:#1e3a5f;font-weight:600;box-shadow:0 -2px 6px rgba(0,0,0,.06)}
+.tab-item .close-tab{font-size:10px;margin-left:4px;opacity:.6;transition:opacity .2s}
+.tab-item .close-tab:hover{opacity:1;color:#ef4444}
+.content-area{flex:1;overflow-y:auto;padding:20px}
+.page{display:none}
+.page.active{display:block;animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.stat-card{background:white;border-radius:12px;padding:16px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);border:1px solid #e2e8f0;transition:all .25s}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08)}
+.dash-card{background:white;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.06);border:1px solid #e2e8f0;transition:all .25s}
+.dash-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.08)}
+.data-table{width:100%;border-collapse:collapse;background:white;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.data-table th{background:#1e3a5f;color:white;padding:10px 14px;text-align:left;font-size:12.5px;font-weight:600;position:sticky;top:0;z-index:1}
+.data-table td{padding:9px 14px;border-bottom:1px solid #f1f5f9;font-size:13px}
+.data-table tbody tr:hover{background:#f8fafc}
+.data-table tbody tr:nth-child(even){background:#fafbfc}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:2000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.modal-overlay.show{display:flex}
+.modal-box{background:white;border-radius:14px;padding:28px;max-width:750px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,.25);animation:modalIn .25s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.form-label{display:block;font-size:12.5px;font-weight:600;color:#374151;margin-bottom:4px}
+.form-input{width:100%;padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13.5px;transition:all .2s;background:#fafbfc}
+.form-input:focus{outline:none;border-color:#1e3a5f;box-shadow:0 0 0 3px rgba(30,58,95,.1);background:white}
+select.form-input{cursor:pointer}
+.btn{padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn:active{transform:scale(.97)}
+.btn-blue{background:#1e3a5f;color:white}
+.btn-blue:hover{background:#2d5a8a}
+.btn-green{background:#16a34a;color:white}
+.btn-green:hover{background:#15803d}
+.btn-red{background:#dc2626;color:white}
+.btn-red:hover{background:#b91c1c}
+.btn-gray{background:#6b7280;color:white}
+.btn-gray:hover{background:#4b5563}
+.btn-outline{background:transparent;border:1.5px solid #d1d5db;color:#374151}
+.btn-outline:hover{background:#f3f4f6}
+.btn-orange{background:#ea580c;color:white}
+.btn-orange:hover{background:#c2410c}
+.btn-sm{padding:5px 10px;font-size:11.5px}
+.sidebar-section{padding:10px 16px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#475569;font-weight:700;margin-top:10px}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#c1c9d4;border-radius:4px}
+.sub-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #e2e8f0;padding-bottom:0;flex-wrap:wrap}
+.sub-tab{padding:8px 18px;cursor:pointer;font-size:13px;font-weight:500;border-radius:8px 8px 0 0;transition:all .2s;color:#64748b;border-bottom:2px solid transparent;margin-bottom:-2px}
+.sub-tab.active{color:#1e3a5f;font-weight:700;border-bottom-color:#1e3a5f;background:#f0f4f8}
+.sub-tab:hover:not(.active){background:#f3f4f6;color:#334155}
+.sub-page{display:none}
+.sub-page.active{display:block;animation:fadeUp .3s ease}
+.mobile-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:99}
+.mobile-overlay.show{display:block}
+.login-tab{flex:1;padding:12px;text-align:center;cursor:pointer;font-weight:600;font-size:14px;color:#64748b;border-bottom:2.5px solid transparent;transition:all .2s}
+.login-tab.active{color:#1e3a5f;border-bottom-color:#1e3a5f}
+.google-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:11px;border:1.5px solid #e5e7eb;border-radius:10px;background:white;font-weight:600;font-size:14px;color:#374151;cursor:pointer;transition:all .2s}
+.google-btn:hover{background:#f9fafb;border-color:#d1d5db;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.divider-or{display:flex;align-items:center;gap:12px;margin:16px 0;color:#94a3b8;font-size:12px}
+.divider-or::before,.divider-or::after{content:'';flex:1;height:1px;background:#e5e7eb}
+.toast-wrap{position:fixed;bottom:24px;right:24px;z-index:4000;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 18px;border-radius:10px;color:white;font-size:13.5px;font-weight:500;box-shadow:0 10px 30px rgba(0,0,0,.2);animation:toastIn .3s ease;display:flex;align-items:center;gap:8px;min-width:260px}
+.toast.success{background:linear-gradient(135deg,#16a34a,#15803d)}
+.toast.error{background:linear-gradient(135deg,#dc2626,#b91c1c)}
+.toast.info{background:linear-gradient(135deg,#2563eb,#1d4ed8)}
+@keyframes toastIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.drop-zone{border:2px dashed #cbd5e1;border-radius:12px;padding:28px;text-align:center;transition:all .2s;cursor:pointer;background:#f8fafc}
+.drop-zone:hover,.drop-zone.dragover{border-color:#3b82f6;background:#eff6ff}
+.quick-action{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 8px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;cursor:pointer;transition:all .2s;text-align:center}
+.quick-action:hover{background:#eff6ff;border-color:#93c5fd;transform:translateY(-2px)}
+.quick-action i{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;color:white}
+.icon-ring{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+@media(max-width:1023px){
+  .sidebar{position:fixed;height:100%;left:0;top:0}
+  .sidebar.collapsed{width:240px;transform:translateX(-240px)}
+  .sidebar:not(.collapsed){width:240px;transform:translateX(0)}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="min-h-screen flex items-center justify-center p-4" style="background:linear-gradient(135deg,#0d1b2a 0%,#1e3a5f 50%,#0d1b2a 100%)">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4 shadow-lg" style="background:linear-gradient(135deg,#60a5fa,#3b82f6)">
+        <i class="fas fa-building text-white text-3xl"></i>
+      </div>
+      <h1 class="text-3xl font-bold text-white mb-1">Miciro Çağı</h1>
+      <p class="text-blue-200 text-sm">İş Yönetim Sistemi</p>
+    </div>
+    <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div class="flex border-b">
+        <div class="login-tab active" id="tabLogin" onclick="showLoginTab('login')">Giriş Yap</div>
+        <div class="login-tab" id="tabSignup" onclick="showLoginTab('signup')">Hesap Oluştur</div>
+      </div>
+      <div class="p-8">
+        <div id="loginError" class="hidden text-sm p-3 rounded-lg mb-4 text-center"></div>
+
+        <button type="button" onclick="doGoogleLogin()" class="google-btn">
+          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.2 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3-3.5 5.4-6.4 6.5l6.3 5.3C37.3 37.3 44 32 44 24c0-1.3-.1-2.5-.4-3.5z"/></svg>
+          Google ile Devam Et
+        </button>
+        <div class="divider-or">veya e-posta ile</div>
+
+        <!-- LOGIN PANE -->
+        <div id="loginPane">
+          <div class="mb-4">
+            <label class="form-label">E-posta</label>
+            <input id="loginEmail" type="email" class="form-input" placeholder="E-posta adresiniz" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()">
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Şifre</label>
+            <input id="loginPassword" type="password" class="form-input" placeholder="Şifreniz" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+          </div>
+          <button onclick="doLogin()" class="btn btn-blue w-full justify-center py-3 text-base mb-3"><i class="fas fa-sign-in-alt"></i> Giriş Yap</button>
+          <button onclick="openResetModal()" class="btn btn-outline w-full justify-center text-sm"><i class="fas fa-key"></i> Şifremi Unuttum</button>
+        </div>
+
+        <!-- SIGNUP PANE -->
+        <div id="signupPane" class="hidden">
+          <div class="mb-4">
+            <label class="form-label">Ad Soyad</label>
+            <input id="signupName" type="text" class="form-input" placeholder="Adınız ve soyadınız" autocomplete="name">
+          </div>
+          <div class="mb-4">
+            <label class="form-label">E-posta</label>
+            <input id="signupEmail" type="email" class="form-input" placeholder="E-posta adresiniz" autocomplete="email">
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Şifre</label>
+            <input id="signupPassword" type="password" class="form-input" placeholder="En az 6 karakter" autocomplete="new-password">
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Şifre Tekrar</label>
+            <input id="signupPassword2" type="password" class="form-input" placeholder="Şifrenizi tekrar girin" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSignup()">
+          </div>
+          <button onclick="doSignup()" class="btn btn-green w-full justify-center py-3 text-base"><i class="fas fa-user-plus"></i> Hesap Oluştur</button>
+        </div>
+      </div>
+    </div>
+    <p class="text-center text-blue-200 text-xs mt-6">© 2024 Miciro Çağı LTD. ŞTİ.</p>
+  </div>
+</div>
+
+<!-- PASSWORD RESET POPUP -->
+<div id="resetModal" class="modal-overlay" onclick="if(event.target===this)closeResetModal()">
+  <div class="modal-box" style="max-width:440px">
+    <div class="text-center mb-4">
+      <div class="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center" style="background:linear-gradient(135deg,#60a5fa,#3b82f6)">
+        <i class="fas fa-key text-white text-xl"></i>
+      </div>
+      <h3 class="font-bold text-lg text-gray-800">Şifre Sıfırlama</h3>
+      <p class="text-sm text-gray-500 mt-1">E-posta adresinize şifre sıfırlama bağlantısı göndereceğiz.</p>
+    </div>
+    <div id="resetMsg" class="hidden text-sm p-3 rounded-lg mb-4 text-center"></div>
+    <div class="mb-4">
+      <label class="form-label">E-posta Adresi</label>
+      <input id="resetEmail" type="email" class="form-input" placeholder="E-posta adresiniz" onkeydown="if(event.key==='Enter')sendResetEmail()">
+    </div>
+    <div class="flex gap-2 justify-end">
+      <button onclick="closeResetModal()" class="btn btn-gray">İptal</button>
+      <button onclick="sendResetEmail()" class="btn btn-blue"><i class="fas fa-paper-plane"></i> Gönder</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" class="hidden h-screen flex">
+  <div id="mobileOverlay" class="mobile-overlay" onclick="toggleSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="sidebar flex flex-col h-full">
+    <div class="p-4 flex items-center gap-3 border-b border-white/10">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0" style="background:linear-gradient(135deg,#60a5fa,#3b82f6)" id="sidebarLogoBox">
+        <i class="fas fa-building text-white text-sm" id="sidebarLogoIcon"></i>
+        <img id="sidebarLogoImg" class="w-full h-full object-cover hidden" alt="logo">
+      </div>
+      <div>
+        <div class="font-bold text-sm leading-tight" id="sidebarFirmaAd">Miciro Çağı</div>
+        <div class="text-xs text-blue-300" id="sidebarFirmaAlt">LTD. ŞTİ.</div>
+      </div>
+    </div>
+    <div class="sidebar-section">Ana Menü</div>
+    <div class="sidebar-item active" data-page="dashboard" onclick="openPage('dashboard','Dashboard')"><i class="fas fa-chart-pie"></i>Dashboard</div>
+    <div class="sidebar-item" data-page="katar" onclick="openPage('katar','Katar Fişleri')"><i class="fas fa-receipt"></i>Katar Fişleri</div>
+    <div class="sidebar-item" data-page="cariler" onclick="openPage('cariler','Cariler')"><i class="fas fa-users"></i>Cariler</div>
+    <div class="sidebar-item" data-page="gelirgider" onclick="openPage('gelirgider','Gelir / Gider')"><i class="fas fa-coins"></i>Gelir / Gider</div>
+    <div class="sidebar-item" data-page="yakit" onclick="openPage('yakit','Yakıt')"><i class="fas fa-gas-pump"></i>Yakıt</div>
+    <div class="sidebar-item" data-page="personel" onclick="openPage('personel','Personel')"><i class="fas fa-user-tie"></i>Personel</div>
+    <div class="sidebar-section">Finans</div>
+    <div class="sidebar-item" data-page="faturalar" onclick="openPage('faturalar','Faturalar')"><i class="fas fa-file-invoice-dollar"></i>Faturalar</div>
+    <div class="sidebar-item" data-page="irsaliye" onclick="openPage('irsaliye','İrsaliye')"><i class="fas fa-truck-loading"></i>İrsaliye</div>
+    <div class="sidebar-item" data-page="sevkfişleri" onclick="openPage('sevkfişleri','Sevk Fişleri')"><i class="fas fa-file-pdf"></i>Sevk Fişleri</div>
+    <div class="sidebar-section">Üretim</div>
+    <div class="sidebar-item" data-page="sanayi" onclick="openPage('sanayi','Sanayi Giderleri')"><i class="fas fa-industry"></i>Sanayi Giderleri</div>
+    <div class="sidebar-item" data-page="tesis" onclick="openPage('tesis','Tesis Çalışma Bilgisi')"><i class="fas fa-hard-hat"></i>Tesis Çalışma Bilgisi</div>
+    <div class="sidebar-section">Ayarlar</div>
+    <div class="sidebar-item" data-page="firma" onclick="openPage('firma','Firma Bilgileri')"><i class="fas fa-id-card"></i>Firma Bilgileri</div>
+    <div class="flex-1"></div>
+    <div class="p-4 border-t border-white/10">
+      <button onclick="doLogout()" class="sidebar-item w-full" style="border:none"><i class="fas fa-sign-out-alt"></i>Çıkış Yap</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main-area">
+    <div class="top-header">
+      <div class="flex items-center gap-3">
+        <button onclick="toggleSidebar()" class="lg:hidden btn btn-outline btn-sm"><i class="fas fa-bars"></i></button>
+        <div class="hidden lg:flex items-center gap-2 text-xs text-gray-400">
+          <i class="fas fa-building"></i>
+          <span id="headerFirmaAd">Miciro Çağı LTD. ŞTİ.</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="closeAllTabs()" class="btn btn-outline btn-sm hidden sm:inline-flex" title="Tüm Sekmeleri Kapat"><i class="fas fa-times-circle"></i><span class="hidden md:inline">Tümünü Kapat</span></button>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="text-right hidden sm:block">
+          <div class="text-xs text-gray-500">Toplam Kasa</div>
+          <div id="headerKasa" class="font-bold text-sm text-green-600">₺0,00</div>
+        </div>
+        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center cursor-pointer" onclick="toggleProfile()">
+          <i class="fas fa-user text-blue-600 text-sm"></i>
+        </div>
+      </div>
+    </div>
+
+    <div id="tabBar" class="tab-bar"></div>
+
+    <div class="content-area" id="contentArea">
+
+      <!-- DASHBOARD -->
+      <div class="page" id="page-dashboard">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <div>
+            <h2 class="text-xl font-bold text-gray-800">Dashboard</h2>
+            <p class="text-sm text-gray-500 mt-0.5" id="dashWelcome">Hoş geldiniz</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="exportAllData()" class="btn btn-green"><i class="fas fa-file-excel"></i> Tüm Verileri İndir</button>
+            <button onclick="openImportModal('all')" class="btn btn-outline"><i class="fas fa-file-upload"></i> Excel Yükle</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+          <div class="dash-card flex items-center gap-3">
+            <div class="icon-ring" style="background:linear-gradient(135deg,#16a34a,#22c55e)"><i class="fas fa-wallet text-white"></i></div>
+            <div><div class="text-xs text-gray-500">Kasa</div><div id="dashKasa" class="text-lg font-bold text-gray-800">₺0,00</div></div>
+          </div>
+          <div class="dash-card flex items-center gap-3">
+            <div class="icon-ring" style="background:linear-gradient(135deg,#2563eb,#3b82f6)"><i class="fas fa-weight-hanging text-white"></i></div>
+            <div><div class="text-xs text-gray-500">Toplam Ton</div><div id="dashTon" class="text-lg font-bold text-gray-800">0</div></div>
+          </div>
+          <div class="dash-card flex items-center gap-3">
+            <div class="icon-ring" style="background:linear-gradient(135deg,#059669,#10b981)"><i class="fas fa-arrow-trend-up text-white"></i></div>
+            <div><div class="text-xs text-gray-500">Toplam Gelir</div><div id="dashGelir" class="text-lg font-bold text-green-600">₺0,00</div></div>
+          </div>
+          <div class="dash-card flex items-center gap-3">
+            <div class="icon-ring" style="background:linear-gradient(135deg,#dc2626,#ef4444)"><i class="fas fa-arrow-trend-down text-white"></i></div>
+            <div><div class="text-xs text-gray-500">Toplam Gider</div><div id="dashGider" class="text-lg font-bold text-red-600">₺0,00</div></div>
+          </div>
+          <div class="dash-card flex items-center gap-3">
+            <div class="icon-ring" style="background:linear-gradient(135deg,#7c3aed,#8b5cf6)"><i class="fas fa-users text-white"></i></div>
+            <div><div class="text-xs text-gray-500">Cari Sayısı</div><div id="dashCari" class="text-lg font-bold text-gray-800">0</div></div>
+          </div>
+          <div class="dash-card flex items-center gap-3">
+            <div class="icon-ring" style="background:linear-gradient(135deg,#0891b2,#06b6d4)"><i class="fas fa-user-tie text-white"></i></div>
+            <div><div class="text-xs text-gray-500">Personel</div><div id="dashPersonel" class="text-lg font-bold text-gray-800">0</div></div>
+          </div>
+          <div class="dash-card flex items-center gap-3">
+            <div class="icon-ring" style="background:linear-gradient(135deg,#d97706,#f59e0b)"><i class="fas fa-file-invoice-dollar text-white"></i></div>
+            <div><div class="text-xs text-gray-500">Faturalar (KDV'li)</div><div id="dashFatura" class="text-lg font-bold text-gray-800">₺0,00</div></div>
+          </div>
+          <div class="dash-card flex items-center gap-3">
+            <div class="icon-ring" style="background:linear-gradient(135deg,#4f46e5,#6366f1)"><i class="fas fa-gas-pump text-white"></i></div>
+            <div><div class="text-xs text-gray-500">Yakıt Toplamı</div><div id="dashYakit" class="text-lg font-bold text-gray-800">₺0,00</div></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-5">
+          <div class="quick-action" onclick="openPage('katar','Katar Fişleri')"><i class="fas fa-receipt" style="background:#1e3a5f"></i><span class="text-xs font-semibold text-gray-700">Katar Fişleri</span></div>
+          <div class="quick-action" onclick="openPage('cariler','Cariler')"><i class="fas fa-users" style="background:#7c3aed"></i><span class="text-xs font-semibold text-gray-700">Cariler</span></div>
+          <div class="quick-action" onclick="openPage('gelirgider','Gelir / Gider')"><i class="fas fa-coins" style="background:#16a34a"></i><span class="text-xs font-semibold text-gray-700">Gelir / Gider</span></div>
+          <div class="quick-action" onclick="openPage('faturalar','Faturalar')"><i class="fas fa-file-invoice" style="background:#d97706"></i><span class="text-xs font-semibold text-gray-700">Faturalar</span></div>
+          <div class="quick-action" onclick="openPage('personel','Personel')"><i class="fas fa-user-tie" style="background:#0891b2"></i><span class="text-xs font-semibold text-gray-700">Personel</span></div>
+          <div class="quick-action" onclick="openPage('tesis','Tesis Çalışma Bilgisi')"><i class="fas fa-hard-hat" style="background:#ea580c"></i><span class="text-xs font-semibold text-gray-700">Tesis</span></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border">
+            <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2"><i class="fas fa-chart-bar text-blue-500"></i> Aylık Katar Satışları (KDV'li)</h3>
+            <div style="height:260px"><canvas id="dashBarChart"></canvas></div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-sm border">
+            <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2"><i class="fas fa-chart-pie text-green-500"></i> Gelir / Gider Dağılımı</h3>
+            <div style="height:260px"><canvas id="dashDoughnut"></canvas></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-bold text-gray-800"><i class="fas fa-receipt text-blue-500 mr-1"></i> Son Katar Fişleri</h3>
+              <button onclick="openPage('katar','Katar Fişleri')" class="text-xs text-blue-600 font-semibold">Tümü →</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="data-table">
+                <thead><tr><th>Tarih</th><th>Cari</th><th>Ürün</th><th>KDV'li</th></tr></thead>
+                <tbody id="dashKatarBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl p-5 shadow-sm border">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-bold text-gray-800"><i class="fas fa-exchange-alt text-green-500 mr-1"></i> Son Gelir / Gider</h3>
+              <button onclick="openPage('gelirgider','Gelir / Gider')" class="text-xs text-blue-600 font-semibold">Tümü →</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="data-table">
+                <thead><tr><th>Tarih</th><th>Tür</th><th>Açıklama</th><th>Tutar</th></tr></thead>
+                <tbody id="dashGGBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KATAR FİŞLERİ -->
+      <div class="page" id="page-katar">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <h2 class="text-xl font-bold text-gray-800">Katar Fişleri</h2>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="openKatarModal()" class="btn btn-blue"><i class="fas fa-plus"></i>Yeni Kayıt Oluştur</button>
+            <button onclick="exportExcel('katar')" class="btn btn-green"><i class="fas fa-file-excel"></i>Excel İndir</button>
+            <button onclick="openImportModal('katar')" class="btn btn-outline"><i class="fas fa-file-upload"></i>Excel Yükle</button>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-3 mb-5">
+          <div class="stat-card min-w-[160px]"><div class="text-xs text-gray-500 mb-1">Toplam Ton</div><div id="katarToplamTon" class="text-lg font-bold text-blue-600">0</div></div>
+          <div class="stat-card min-w-[160px]"><div class="text-xs text-gray-500 mb-1">Toplam Alacak (KDV'siz)</div><div id="katarToplamKDVsiz" class="text-lg font-bold text-green-600">₺0,00</div></div>
+          <div class="stat-card min-w-[160px]"><div class="text-xs text-gray-500 mb-1">Toplam Alacak (KDV'li)</div><div id="katarToplamKDVli" class="text-lg font-bold text-emerald-700">₺0,00</div></div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="data-table" id="katarTable">
+            <thead><tr><th>Tarih</th><th>Fiş No</th><th>Açıklama</th><th>Cari</th><th>Ürün</th><th>Birim Fiyat</th><th>KDV'siz</th><th>KDV'li</th><th>İşlem</th></tr></thead>
+            <tbody id="katarBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CARİLER -->
+      <div class="page" id="page-cariler">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <h2 class="text-xl font-bold text-gray-800">Cariler</h2>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="openCariModal()" class="btn btn-blue"><i class="fas fa-plus"></i>Yeni Cari Ekle</button>
+            <button onclick="exportExcel('cariler')" class="btn btn-green"><i class="fas fa-file-excel"></i>Excel İndir</button>
+            <button onclick="openImportModal('cariler')" class="btn btn-outline"><i class="fas fa-file-upload"></i>Excel Yükle</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="data-table" id="cariTable">
+            <thead><tr><th>Cari Adı</th><th>Telefon</th><th>Plaka</th><th>Ön Ödeme</th><th>Bakiye</th><th>İşlem</th></tr></thead>
+            <tbody id="cariBody"></tbody>
+          </table>
+        </div>
+        <div id="cariDetailPanel" class="hidden mt-6 bg-white rounded-xl p-5 shadow-sm border">
+          <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div>
+              <h3 id="cariDetailName" class="font-bold text-lg text-gray-800"></h3>
+              <p class="text-sm text-gray-500">Cari Detay</p>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+              <select id="cariFilterMonth" class="form-input" style="width:auto" onchange="renderCariDetail()">
+                <option value="">Tüm Aylar</option>
+                <option value="01">Ocak</option><option value="02">Şubat</option><option value="03">Mart</option>
+                <option value="04">Nisan</option><option value="05">Mayıs</option><option value="06">Haziran</option>
+                <option value="07">Temmuz</option><option value="08">Ağustos</option><option value="09">Eylül</option>
+                <option value="10">Ekim</option><option value="11">Kasım</option><option value="12">Aralık</option>
+              </select>
+              <input id="cariFilterPlate" type="text" class="form-input" placeholder="Plaka filtrele..." style="width:140px" oninput="renderCariDetail()">
+              <button onclick="exportCariDetailExcel()" class="btn btn-green btn-sm"><i class="fas fa-file-excel"></i>Excel İndir</button>
+              <button onclick="openOnOdemeModal()" class="btn btn-blue btn-sm"><i class="fas fa-hand-holding-usd"></i>Ön Ödeme Ekle</button>
+              <button onclick="closeCariDetail()" class="btn btn-gray btn-sm"><i class="fas fa-times"></i>Kapat</button>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-3 mb-4">
+            <div class="stat-card flex-1 min-w-[140px]"><div class="text-xs text-gray-500">Toplam Satış</div><div id="cariDetailToplam" class="font-bold text-blue-600">₺0,00</div></div>
+            <div class="stat-card flex-1 min-w-[140px]"><div class="text-xs text-gray-500">Ön Ödeme</div><div id="cariDetailOnOdeme" class="font-bold text-green-600">₺0,00</div></div>
+            <div class="stat-card flex-1 min-w-[140px]"><div class="text-xs text-gray-500">Net Bakiye</div><div id="cariDetailBakiye" class="font-bold text-red-600">₺0,00</div></div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="data-table">
+              <thead><tr><th>Tarih</th><th>Fiş No</th><th>Açıklama</th><th>Ürün</th><th>KDV'siz</th><th>KDV'li</th></tr></thead>
+              <tbody id="cariDetailBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- GELİR / GİDER -->
+      <div class="page" id="page-gelirgider">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <h2 class="text-xl font-bold text-gray-800">Gelir / Gider</h2>
+          <div class="flex gap-3 items-center flex-wrap">
+            <div class="stat-card"><div class="text-xs text-gray-500">Kasa Tutarı</div><div id="ggKasa" class="text-lg font-bold text-green-600">₺0,00</div></div>
+            <button onclick="openGelirModal()" class="btn btn-green"><i class="fas fa-plus"></i>Gelir Ekle</button>
+            <button onclick="openGiderModal()" class="btn btn-red"><i class="fas fa-minus"></i>Gider Ekle</button>
+            <button onclick="openTahsilatModal()" class="btn btn-blue"><i class="fas fa-hand-holding-usd"></i>Tahsilat</button>
+            <button onclick="exportExcel('gelirgider')" class="btn btn-green"><i class="fas fa-file-excel"></i>Excel İndir</button>
+            <button onclick="openImportModal('gelirgider')" class="btn btn-outline"><i class="fas fa-file-upload"></i>Excel Yükle</button>
+          </div>
+        </div>
+        <div class="flex gap-3 mb-5 flex-wrap">
+          <div class="stat-card flex-1 min-w-[150px]"><div class="text-xs text-gray-500">Toplam Gelir</div><div id="ggToplamGelir" class="font-bold text-green-600">₺0,00</div></div>
+          <div class="stat-card flex-1 min-w-[150px]"><div class="text-xs text-gray-500">Toplam Gider</div><div id="ggToplamGider" class="font-bold text-red-600">₺0,00</div></div>
+          <div class="stat-card flex-1 min-w-[150px]"><div class="text-xs text-gray-500">Net</div><div id="ggNet" class="font-bold text-blue-600">₺0,00</div></div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="data-table" id="ggTable">
+            <thead><tr><th>Tarih</th><th>Tür</th><th>Açıklama</th><th>Kaynak</th><th>Tutar</th><th>İşlem</th></tr></thead>
+            <tbody id="ggBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- YAKIT -->
+      <div class="page" id="page-yakit">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <h2 class="text-xl font-bold text-gray-800">Yakıt Kayıtları</h2>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="openYakitModal()" class="btn btn-blue"><i class="fas fa-plus"></i>Yeni Kayıt Gir</button>
+            <button onclick="exportExcel('yakit')" class="btn btn-green"><i class="fas fa-file-excel"></i>Excel İndir</button>
+            <button onclick="openImportModal('yakit')" class="btn btn-outline"><i class="fas fa-file-upload"></i>Excel Yükle</button>
+          </div>
+        </div>
+        <div class="stat-card mb-5 inline-block">
+          <div class="text-xs text-gray-500">Toplam Yakıt Tutarı</div>
+          <div id="yakitToplam" class="text-lg font-bold text-blue-600">₺0,00</div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="data-table" id="yakitTable">
+            <thead><tr><th>Tarih</th><th>Fiş No</th><th>Plaka</th><th>Şoför</th><th>Teslim Eden</th><th>Saat</th><th>KM</th><th>LT</th><th>Birim Fiyat</th><th>Toplam</th><th>İşlem</th></tr></thead>
+            <tbody id="yakitBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PERSONEL -->
+      <div class="page" id="page-personel">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-3">
+          <h2 class="text-xl font-bold text-gray-800">Personel Yönetimi</h2>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="openPersonelModal()" class="btn btn-blue"><i class="fas fa-plus"></i>Personel Ekle</button>
+            <button onclick="exportExcel('personel')" class="btn btn-green"><i class="fas fa-file-excel"></i>Excel İndir</button>
+            <button onclick="openImportModal('personel')" class="btn btn-outline"><i class="fas fa-file-upload"></i>Excel Yükle</button>
+          </div>
+        </div>
+        <div class="sub-tabs" id="personelTabs">
+          <div class="sub-tab active" onclick="showPersonelSub('ozluk')">Özlük Dosyaları</div>
+          <div class="sub-tab" onclick="showPersonelSub('izin')">İzin ve İzin Formu</div>
+          <div class="sub-tab" onclick="showPersonelSub('giriscikis')">İşe Giriş / Çıkış</div>
+          <div class="sub-tab" onclick="showPersonelSub('maas')">Maaş</div>
+        </div>
+        <div id="personelSub-ozluk" class="sub-page active">
+          <div class="overflow-x-auto">
+            <table class="data-table">
+              <thead><tr><th>Ad Soyad</th><th>TC No</th><th>Telefon</th><th>Görev</th><th>Başlangıç</th><th>İşlem</th></tr></thead>
+              <tbody id="ozlukBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="personelSub-izin" class="sub-page">
+          <div class="flex justify-end mb-3"><button onclick="openIzinModal()" class="btn btn-blue btn-sm"><i class="fas fa-plus"></i>İzin Ekle</button></div>
+          <div class="overflow-x-auto">
+            <table class="data-table">
+              <thead><tr><th>Personel</th><th>Başlangıç</th><th>Bitiş</th><th>Gün</th><th>Açıklama</th><th>İşlem</th></tr></thead>
+              <tbody id="izinBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="personelSub-giriscikis" class="sub-page">
+          <div class="flex justify-end mb-3"><button onclick="openGirisCikisModal()" class="btn btn-blue btn-sm"><i class="fas fa-plus"></i>Kayıt Ekle</button></div>
+          <div class="overflow-x-auto">
+            <table class="data-table">
+              <thead><tr><th>Personel</th><th>Tarih</th><th>Giriş</th><th>Çıkış</th><th>Çıkış Sebebi</th><th>İşlem</th></tr></thead>
+              <tbody id="giriscikisBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="personelSub-maas" class="sub-page">
+          <div class="flex justify-end mb-3"><button onclick="openMaasModal()" class="btn btn-blue btn-sm"><i class="fas fa-plus"></i>Maaş Ekle</button></div>
+          <div class="overflow-x-auto">
+            <table class="data-table">
+              <thead><tr><th>Personel</th><th>Ay/Yıl</th><th>Banka</th><th>Elden</th><th>Mesaai Saat</th><th>Mesaai Tutar</th><th>Net Maaş</th><th>İşlem</th></tr></thead>
+              <tbody id="maasBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- FATURALAR -->
+      <div class="page" id="page-faturalar">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <h2 class="text-xl font-bold text-gray-800">Faturalar</h2>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="openFaturaModal()" class="btn btn-blue"><i class="fas fa-plus"></i>Yeni Fatura</button>
+            <button onclick="exportExcel('faturalar')" class="btn btn-green"><i class="fas fa-file-excel"></i>Excel İndir</button>
+            <button onclick="openImportModal('faturalar')" class="btn btn-outline"><i class="fas fa-file-upload"></i>Excel Yükle</button>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-3 mb-5">
+          <div class="stat-card min-w-[160px]"><div class="text-xs text-gray-500">Toplam Ton</div><div id="faturaToplamTon" class="text-lg font-bold text-blue-600">0</div></div>
+          <div class="stat-card min-w-[180px]"><div class="text-xs text-gray-500">Toplam (KDV'siz)</div><div id="faturaToplamKdvsiz" class="text-lg font-bold text-green-600">₺0,00</div></div>
+          <div class="stat-card min-w-[180px]"><div class="text-xs text-gray-500">Toplam (KDV'li)</div><div id="faturaToplamKdvli" class="text-lg font-bold text-emerald-700">₺0,00</div></div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="data-table" id="faturaTable">
+            <thead><tr><th>Tarih</th><th>Fatura No</th><th>Ünvan</th><th>VKN/TCKN</th><th>Ürün</th><th>Miktar(Ton)</th><th>Birim Fiyat</th><th>KDV'siz</th><th>KDV'li</th><th>İşlem</th></tr></thead>
+            <tbody id="faturaBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- İRSALİYE -->
+      <div class="page" id="page-irsaliye">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <h2 class="text-xl font-bold text-gray-800">İrsaliye</h2>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="openIrsaliyeModal()" class="btn btn-blue"><i class="fas fa-plus"></i>Yeni İrsaliye</button>
+            <button onclick="exportExcel('irsaliye')" class="btn btn-green"><i class="fas fa-file-excel"></i>Excel İndir</button>
+            <button onclick="openImportModal('irsaliye')" class="btn btn-outline"><i class="fas fa-file-upload"></i>Excel Yükle</button>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-3 mb-5">
+          <div class="stat-card min-w-[160px]"><div class="text-xs text-gray-500">Toplam Ton</div><div id="irsToplamTon" class="text-lg font-bold text-blue-600">0</div></div>
+          <div class="stat-card min-w-[180px]"><div class="text-xs text-gray-500">Toplam (KDV'siz)</div><div id="irsToplamKdvsiz" class="text-lg font-bold text-green-600">₺0,00</div></div>
+          <div class="stat-card min-w-[180px]"><div class="text-xs text-gray-500">Toplam (KDV'li)</div><div id="irsToplamKdvli" class="text-lg font-bold text-emerald-700">₺0,00</div></div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="data-table" id="irsaliyeTable">
+            <thead><tr><th>Tarih</th><th>İrsaliye No</th><th>Ünvan</th><th>VKN/TCKN</th><th>Ürün</th><th>Miktar(Ton)</th><th>Birim Fiyat</th><th>KDV'siz</th><th>KDV'li</th><th>İşlem</th></tr></thead>
+            <tbody id="irsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SEVK FİŞLERİ -->
+      <div class="page" id="page-sevkfişleri">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <h2 class="text-xl font-bold text-gray-800">Sevk Fişleri</h2>
+          <div class="flex flex-wrap gap-2">
+            <label class="btn btn-blue cursor-pointer"><i class="fas fa-upload"></i>PDF Yükle<input type="file" accept=".pdf" multiple class="hidden" onchange="handleSevkUpload(event)"></label>
+            <button onclick="exportExcel('sevk')" class="btn btn-green"><i class="fas fa-file-excel"></i>Excel İndir</button>
+          </div>
+        </div>
+        <div class="flex gap-2 mb-4">
+          <input id="sevkSearch" type="text" class="form-input" placeholder="Dosya adı ile filtrele..." oninput="renderSevk()" style="max-width:300px">
+        </div>
+        <div class="overflow-x-auto">
+          <table class="data-table" id="sevkTable">
+            <thead><tr><th>Dosya Adı</th><th>Boyut</th><th>Yüklenme Tarihi</th><th>İşlem</th></tr></thead>
+            <tbody id="sevkBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SANAYİ GİDERLERİ -->
+      <div class="page" id="page-sanayi">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <h2 class="text-xl font-bold text-gray-800">Sanayi Giderleri</h2>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="openSanayiModal()" class="btn btn-blue"><i class="fas fa-plus"></i>Yeni Kayıt Oluştur</button>
+            <button onclick="exportExcel('sanayi')" class="btn btn-green"><i class="fas fa-file-excel"></i>Excel İndir</button>
+            <button onclick="openImportModal('sanayi')" class="btn btn-outline"><i class="fas fa-file-upload"></i>Excel Yükle</button>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-3 mb-5">
+          <div class="stat-card min-w-[180px]"><div class="text-xs text-gray-500">Toplam Alınan</div><div id="sanayiAlinan" class="text-lg font-bold text-green-600">₺0,00</div></div>
+          <div class="stat-card min-w-[180px]"><div class="text-xs text-gray-500">Toplam Verilen</div><div id="sanayiVerilen" class="text-lg font-bold text-red-600">₺0,00</div></div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="data-table" id="sanayiTable">
+            <thead><tr><th>Tarih</th><th>Fiş/Fatura No</th><th>Açıklama</th><th>Teslim Alan</th><th>Miktar</th><th>Fiyat</th><th>Alınan Ödeme</th><th>Verilen Ödeme</th><th>İşlem</th></tr></thead>
+            <tbody id="sanayiBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TESİS ÇALIŞMA BİLGİSİ -->
+      <div class="page" id="page-tesis">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <h2 class="text-xl font-bold text-gray-800">Tesis Çalışma Bilgisi</h2>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="openTesisModal()" class="btn btn-blue"><i class="fas fa-plus"></i>Yeni Kayıt Oluştur</button>
+            <button onclick="exportExcel('tesis')" class="btn btn-green"><i class="fas fa-file-excel"></i>Excel İndir</button>
+            <button onclick="openImportModal('tesis')" class="btn btn-outline"><i class="fas fa-file-upload"></i>Excel Yükle</button>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-3 mb-5">
+          <div class="stat-card min-w-[220px]">
+            <div class="text-xs text-gray-500 mb-2">Kayıtlardan Hesaplanan Çalışılmayan Süre</div>
+            <div id="tesisHesaplananSure" class="text-lg font-bold text-orange-600">0 saat 0 dk</div>
+          </div>
+          <div class="stat-card min-w-[320px]">
+            <div class="text-xs text-gray-500 mb-2">Çalışılmayan Toplam Süre (Manuel)</div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <input id="tesisManSaat" type="number" min="0" class="form-input" style="width:90px" placeholder="Saat" onchange="saveTesisManuelSure()">
+              <span class="text-sm text-gray-600">saat</span>
+              <input id="tesisManDakika" type="number" min="0" max="59" class="form-input" style="width:90px" placeholder="Dk" onchange="saveTesisManuelSure()">
+              <span class="text-sm text-gray-600">dk</span>
+              <button onclick="saveTesisManuelSure()" class="btn btn-blue btn-sm"><i class="fas fa-save"></i>Kaydet</button>
+            </div>
+            <div class="text-xs text-gray-400 mt-1">Bu alana toplam çalışılmayan süreyi elle girebilirsiniz.</div>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="data-table" id="tesisTable">
+            <thead><tr><th>Tarih</th><th>Başlama</th><th>Paydos</th><th>Çalışılmayan Süre</th><th>Açıklamalar</th><th>İşlem</th></tr></thead>
+            <tbody id="tesisBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- FİRMA BİLGİLERİ -->
+      <div class="page" id="page-firma">
+        <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <h2 class="text-xl font-bold text-gray-800">Firma Bilgileri</h2>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="saveFirma()" class="btn btn-blue"><i class="fas fa-save"></i>Kaydet</button>
+            <button onclick="exportExcel('firma')" class="btn btn-green"><i class="fas fa-file-excel"></i>Excel İndir</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div class="lg:col-span-1">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border text-center">
+              <div class="w-28 h-28 rounded-2xl mx-auto mb-4 overflow-hidden flex items-center justify-center border-2 border-dashed border-gray-200" style="background:linear-gradient(135deg,#eff6ff,#dbeafe)" id="firmaLogoPreviewWrap">
+                <i class="fas fa-building text-blue-400 text-4xl" id="firmaLogoPlaceholder"></i>
+                <img id="firmaLogoPreview" class="w-full h-full object-cover hidden" alt="Logo">
+              </div>
+              <label class="btn btn-outline btn-sm cursor-pointer">
+                <i class="fas fa-image"></i> Logo Yükle
+                <input type="file" accept="image/*" class="hidden" onchange="handleFirmaLogo(event)">
+              </label>
+              <button onclick="clearFirmaLogo()" class="btn btn-gray btn-sm mt-2"><i class="fas fa-trash"></i></button>
+              <p class="text-xs text-gray-400 mt-3">PNG, JPG — kare önerilir</p>
+            </div>
+          </div>
+          <div class="lg:col-span-2">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border">
+              <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-info-circle text-blue-500"></i> Kurumsal Bilgiler</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label class="form-label">Firma Ünvanı</label><input id="fUnvan" class="form-input" placeholder="Miciro Çağı LTD. ŞTİ."></div>
+                <div><label class="form-label">Kısa Ad</label><input id="fKisaAd" class="form-input" placeholder="Miciro Çağı"></div>
+                <div><label class="form-label">Vergi Dairesi</label><input id="fVergiDairesi" class="form-input" placeholder="Vergi dairesi"></div>
+                <div><label class="form-label">VKN / TCKN</label><input id="fVkn" class="form-input" placeholder="Vergi kimlik no"></div>
+                <div><label class="form-label">Telefon</label><input id="fTelefon" class="form-input" placeholder="0xxx xxx xx xx"></div>
+                <div><label class="form-label">E-posta</label><input id="fEmail" type="email" class="form-input" placeholder="info@firma.com"></div>
+                <div><label class="form-label">Web Sitesi</label><input id="fWebsite" class="form-input" placeholder="https://"></div>
+                <div><label class="form-label">Yetkili Kişi</label><input id="fYetkili" class="form-input" placeholder="Ad Soyad"></div>
+                <div class="md:col-span-2"><label class="form-label">Adres</label><textarea id="fAdres" class="form-input" rows="2" placeholder="Açık adres"></textarea></div>
+                <div class="md:col-span-2"><label class="form-label">IBAN</label><input id="fIban" class="form-input" placeholder="TR00 ACCT-000003 0000 00"></div>
+                <div><label class="form-label">Banka Adı</label><input id="fBanka" class="form-input" placeholder="Banka"></div>
+                <div><label class="form-label">Mersis No</label><input id="fMersis" class="form-input" placeholder="Mersis numarası"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content-area -->
+  </div><!-- /main-area -->
+</div><!-- /mainApp -->
+
+<!-- MODAL -->
+<div id="modalOverlay" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<!-- TESİS DİYALOG -->
+<div id="tesisDescDialog" class="modal-overlay" onclick="if(event.target===this)closeTesisDescDialog()">
+  <div class="modal-box" style="max-width:400px">
+    <h3 class="font-bold text-lg mb-4 text-gray-800">Açıklama Ekle</h3>
+    <textarea id="tesisNewDesc" class="form-input" rows="3" placeholder="Açıklama yazın..."></textarea>
+    <div class="flex gap-2 mt-4 justify-end">
+      <button onclick="closeTesisDescDialog()" class="btn btn-gray btn-sm">İptal</button>
+      <button onclick="addTesisDesc()" class="btn btn-blue btn-sm">Ekle</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div id="importOverlay" class="modal-overlay" onclick="if(event.target===this)closeImportModal()">
+  <div class="modal-box" style="max-width:820px">
+    <h3 class="font-bold text-lg mb-1 text-gray-800" id="importTitle">Excel İçe Aktar</h3>
+    <p class="text-sm text-gray-500 mb-4" id="importHint">Excel (.xlsx / .xls / .csv) dosyanızı yükleyin. İlk satır başlık olmalıdır.</p>
+    <div id="importDropZone" class="drop-zone mb-4" onclick="document.getElementById('importFile').click()">
+      <i class="fas fa-cloud-upload-alt text-3xl text-blue-400 mb-2"></i>
+      <div class="font-semibold text-gray-700">Dosyayı sürükleyin veya tıklayın</div>
+      <div class="text-xs text-gray-400 mt-1">XLSX, XLS, CSV</div>
+      <input id="importFile" type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="onImportFile(event)">
+    </div>
+    <div id="importExpected" class="mb-4 text-xs text-gray-500"></div>
+    <div id="importPreviewWrap" class="hidden">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-semibold text-gray-700">Önizleme (<span id="importCount">0</span> kayıt)</span>
+      </div>
+      <div class="overflow-x-auto max-h-56 border rounded-lg mb-4">
+        <table class="data-table" id="importPreviewTable"></table>
+      </div>
+    </div>
+    <div class="flex gap-2 justify-end">
+      <button onclick="closeImportModal()" class="btn btn-gray">İptal</button>
+      <button id="importConfirmBtn" onclick="confirmImport()" class="btn btn-green" disabled><i class="fas fa-file-import"></i> İçe Aktar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+// ============ FIREBASE ============
+const firebaseConfig={
+  apiKey:"AIzaSyACu0eNfvRe3A-6MzdVZ0Q_meGNgcTjc8s",
+  authDomain:"micirocagi.firebaseapp.com",
+  projectId:"micirocagi",
+  storageBucket:"micirocagi.firebasestorage.app",
+  messagingSenderId:"1048148861168",
+  appId:"1:1048148861168:web:9c725508bcb361bb382235",
+  measurementId:"G-0N76CQEK68"
+};
+firebase.initializeApp(firebaseConfig);
+
+function showAuthError(el,msg,ok){
+  el.textContent=msg;
+  el.classList.remove('hidden');
+  el.className=(ok?'bg-green-50 text-green-600':'bg-red-50 text-red-600')+' text-sm p-3 rounded-lg mb-4 text-center';
+}
+function enterApp(){
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  document.getElementById('mainApp').style.display='flex';
+  initApp();
+}
+function doLogin(){
+  const e=document.getElementById('loginEmail').value.trim();
+  const p=document.getElementById('loginPassword').value;
+  const err=document.getElementById('loginError');
+  if(!e||!p){showAuthError(err,'E-posta ve şifre girin');return;}
+  err.classList.add('hidden');
+  firebase.auth().signInWithEmailAndPassword(e,p).then(()=>{enterApp();}).catch(error=>{showAuthError(err,trAuthError(error));});
+}
+function doSignup(){
+  const name=document.getElementById('signupName').value.trim();
+  const e=document.getElementById('signupEmail').value.trim();
+  const p=document.getElementById('signupPassword').value;
+  const p2=document.getElementById('signupPassword2').value;
+  const err=document.getElementById('loginError');
+  if(!e||!p){showAuthError(err,'E-posta ve şifre girin');return;}
+  if(p.length<6){showAuthError(err,'Şifre en az 6 karakter olmalıdır');return;}
+  if(p!==p2){showAuthError(err,'Şifreler eşleşmiyor');return;}
+  err.classList.add('hidden');
+  firebase.auth().createUserWithEmailAndPassword(e,p).then(cred=>{
+    if(name&&cred.user){return cred.user.updateProfile({displayName:name});}
+  }).then(()=>{toast('Hesabınız oluşturuldu','success');enterApp();}).catch(error=>{showAuthError(err,trAuthError(error));});
+}
+function doGoogleLogin(){
+  const err=document.getElementById('loginError');
+  const provider=new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({prompt:'select_account'});
+  firebase.auth().signInWithPopup(provider).then(()=>{enterApp();}).catch(error=>{
+    showAuthError(err,trAuthError(error));
+  });
+}
+function trAuthError(error){
+  const c=error&&error.code;
+  const map={
+    'auth/invalid-email':'Geçersiz e-posta adresi',
+    'auth/user-disabled':'Bu hesap devre dışı bırakılmış',
+    'auth/user-not-found':'Bu e-posta ile kayıtlı kullanıcı bulunamadı',
+    'auth/wrong-password':'Şifre hatalı',
+    'auth/invalid-credential':'E-posta veya şifre hatalı',
+    'auth/email-already-in-use':'Bu e-posta zaten kullanımda',
+    'auth/weak-password':'Şifre çok zayıf (en az 6 karakter)',
+    'auth/popup-closed-by-user':'Google penceresi kapatıldı',
+    'auth/cancelled-popup-request':'İşlem iptal edildi',
+    'auth/popup-blocked':'Açılır pencere engellendi. Lütfen tarayıcı iznini verin',
+    'auth/operation-not-allowed':'Bu giriş yöntemi henüz etkin değil. Firebase konsolundan Google girişini açın',
+    'auth/too-many-requests':'Çok fazla deneme. Lütfen biraz bekleyin',
+    'auth/network-request-failed':'Ağ hatası. İnternet bağlantınızı kontrol edin'
+  };
+  return map[c]||(error&&error.message)||'Bir hata oluştu';
+}
+function showLoginTab(tab){
+  document.getElementById('loginPane').classList.toggle('hidden',tab!=='login');
+  document.getElementById('signupPane').classList.toggle('hidden',tab!=='signup');
+  document.getElementById('tabLogin').classList.toggle('active',tab==='login');
+  document.getElementById('tabSignup').classList.toggle('active',tab==='signup');
+  document.getElementById('loginError').classList.add('hidden');
+}
+function openResetModal(){
+  const pre=document.getElementById('loginEmail').value.trim();
+  document.getElementById('resetEmail').value=pre;
+  document.getElementById('resetMsg').classList.add('hidden');
+  document.getElementById('resetModal').classList.add('show');
+  setTimeout(()=>document.getElementById('resetEmail').focus(),150);
+}
+function closeResetModal(){document.getElementById('resetModal').classList.remove('show');}
+function sendResetEmail(){
+  const e=document.getElementById('resetEmail').value.trim();
+  const msg=document.getElementById('resetMsg');
+  if(!e){showAuthError(msg,'Lütfen e-posta adresinizi girin');return;}
+  firebase.auth().sendPasswordResetEmail(e).then(()=>{
+    showAuthError(msg,'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi!',true);
+    toast('Sıfırlama e-postası gönderildi','success');
+  }).catch(error=>{showAuthError(msg,trAuthError(error));});
+}
+function doLogout(){firebase.auth().signOut().then(()=>{location.reload();});}
+
+// ============ DATA ============
+function getD(k){try{return JSON.parse(localStorage.getItem('mi_'+k)||'[]')}catch(e){return[]}}
+function setD(k,d){localStorage.setItem('mi_'+k,JSON.stringify(d))}
+function getKasa(){return parseFloat(localStorage.getItem('mi_kasa')||'0')}
+function setKasa(v){localStorage.setItem('mi_kasa',v.toString())}
+function getFirma(){try{return JSON.parse(localStorage.getItem('mi_firma')||'{}')}catch(e){return{}}}
+function setFirma(d){localStorage.setItem('mi_firma',JSON.stringify(d))}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5)}
+function fmt(n){return new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY',minimumFractionDigits:2}).format(n||0)}
+function fmtNum(n){return new Intl.NumberFormat('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0)}
+function today(){return new Date().toISOString().split('T')[0]}
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function toast(msg,type){
+  const w=document.getElementById('toastWrap');
+  const t=document.createElement('div');
+  t.className='toast '+(type||'success');
+  const ic=type==='error'?'fa-circle-exclamation':(type==='info'?'fa-circle-info':'fa-check-circle');
+  t.innerHTML='<i class="fas '+ic+'"></i><span>'+esc(msg)+'</span>';
+  w.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';setTimeout(()=>t.remove(),300);},3200);
+}
+
+// ============ TABS ============
+let openPages={};
+let activePage='dashboard';
+function openPage(id,name){
+  if(!openPages[id])openPages[id]={id,name};
+  activePage=id;
+  renderTabBar();
+  showPage(id);
+  updateSidebar();
+  if(window.innerWidth<1024){
+    const sb=document.getElementById('sidebar');
+    if(!sb.classList.contains('collapsed'))toggleSidebar();
+  }
+}
+function closePageTab(id){
+  delete openPages[id];
+  if(activePage===id){
+    const keys=Object.keys(openPages);
+    activePage=keys.length?keys[keys.length-1]:'';
+  }
+  renderTabBar();
+  showPage(activePage);
+  updateSidebar();
+}
+function closeAllTabs(){
+  openPages={};
+  activePage='';
+  renderTabBar();
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  updateSidebar();
+}
+function renderTabBar(){
+  const bar=document.getElementById('tabBar');
+  const tabs=Object.values(openPages);
+  if(!tabs.length){bar.style.display='none';return;}
+  bar.style.display='flex';
+  bar.innerHTML=tabs.map(t=>`<div class="tab-item ${t.id===activePage?'active':''}" onclick="openPage('${t.id}','${esc(t.name)}')"><span>${esc(t.name)}</span><span class="close-tab" onclick="event.stopPropagation();closePageTab('${t.id}')">✕</span></div>`).join('');
+}
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const el=document.getElementById('page-'+id);
+  if(el)el.classList.add('active');
+  renderPageData(id);
+}
+function updateSidebar(){
+  document.querySelectorAll('.sidebar-item[data-page]').forEach(s=>{
+    s.classList.toggle('active',s.dataset.page===activePage);
+  });
+}
+
+// ============ RENDER DATA ============
+function renderPageData(id){
+  switch(id){
+    case'dashboard':renderDashboard();break;
+    case'katar':renderKatar();break;
+    case'cariler':renderCariler();break;
+    case'gelirgider':renderGelirGider();break;
+    case'yakit':renderYakit();break;
+    case'personel':renderPersonel();break;
+    case'faturalar':renderFaturalar();break;
+    case'irsaliye':renderIrsaliye();break;
+    case'sevkfişleri':renderSevk();break;
+    case'sanayi':renderSanayi();break;
+    case'tesis':renderTesis();break;
+    case'firma':renderFirma();break;
+  }
+  updateHeaderKasa();
+}
+function updateHeaderKasa(){
+  const el=document.getElementById('headerKasa');
+  if(el)el.textContent=fmt(getKasa());
+}
+
+// ============ DASHBOARD ============
+let dashCharts={};
+const AYLAR=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+function last6Months(){
+  const r=[];
+  const now=new Date();
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    r.push({y:d.getFullYear(),m:d.getMonth()+1,label:AYLAR[d.getMonth()]+' '+d.getFullYear()});
+  }
+  return r;
+}
+function renderDashboard(){
+  const user=firebase.auth().currentUser;
+  const firma=getFirma();
+  const greet=user&&(user.displayName||user.email)?(user.displayName||user.email):'';
+  document.getElementById('dashWelcome').textContent=greet?('Hoş geldiniz, '+greet):('Hoş geldiniz'+(firma.kisaAd?(' — '+firma.kisaAd):''));
+
+  const katar=getD('katar');
+  const gelirler=getD('gelirler');
+  const giderler=getD('giderler');
+  const cariler=getD('cariler');
+  const personeller=getD('personeller');
+  const faturalar=getD('faturalar');
+  const yakit=getD('yakit');
+
+  const topTon=katar.reduce((s,k)=>s+(parseFloat(k.miktar)||0),0);
+  const topGelir=gelirler.reduce((s,g)=>s+(parseFloat(g.tutar)||0),0);
+  const topGider=giderler.reduce((s,g)=>s+(parseFloat(g.tutar)||0),0);
+  const topFatura=faturalar.reduce((s,f)=>s+(parseFloat(f.kdvli)||0),0);
+  const topYakit=yakit.reduce((s,y)=>s+(parseFloat(y.toplamFiyat)||0),0);
+
+  document.getElementById('dashKasa').textContent=fmt(getKasa());
+  document.getElementById('dashTon').textContent=fmtNum(topTon);
+  document.getElementById('dashGelir').textContent=fmt(topGelir);
+  document.getElementById('dashGider').textContent=fmt(topGider);
+  document.getElementById('dashCari').textContent=cariler.length;
+  document.getElementById('dashPersonel').textContent=personeller.length;
+  document.getElementById('dashFatura').textContent=fmt(topFatura);
+  document.getElementById('dashYakit').textContent=fmt(topYakit);
+
+  const months=last6Months();
+  const monthVals=months.map(mo=>{
+    return katar.filter(k=>{
+      if(!k.tarih)return false;
+      const p=k.tarih.split('-');
+      return parseInt(p[0],10)===mo.y && parseInt(p[1],10)===mo.m;
+    }).reduce((s,k)=>s+(parseFloat(k.kdvli)||0),0);
+  });
+
+  const barCtx=document.getElementById('dashBarChart');
+  const donCtx=document.getElementById('dashDoughnut');
+  if(dashCharts.bar)dashCharts.bar.destroy();
+  if(dashCharts.don)dashCharts.don.destroy();
+  if(barCtx&&typeof Chart!=='undefined'){
+    dashCharts.bar=new Chart(barCtx,{
+      type:'bar',
+      data:{labels:months.map(m=>m.label),datasets:[{label:'KDV\'li Satış',data:monthVals,backgroundColor:'rgba(37,99,235,.75)',borderRadius:8,maxBarThickness:36}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'₺'+v}}}}
+    });
+  }
+  if(donCtx&&typeof Chart!=='undefined'){
+    dashCharts.don=new Chart(donCtx,{
+      type:'doughnut',
+      data:{labels:['Gelir','Gider'],datasets:[{data:[topGelir||0,topGider||0],backgroundColor:['#16a34a','#dc2626'],borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},cutout:'62%'}
+    });
+  }
+
+  const lastKatar=[...katar].sort((a,b)=>(b.tarih||'').localeCompare(a.tarih||'')).slice(0,6);
+  document.getElementById('dashKatarBody').innerHTML=lastKatar.length?lastKatar.map(d=>`<tr><td>${esc(d.tarih)}</td><td>${esc(d.cari)}</td><td>${esc(d.urun)}</td><td class="font-semibold">${fmt(d.kdvli)}</td></tr>`).join(''):'<tr><td colspan="4" class="text-center text-gray-400 py-4">Kayıt yok</td></tr>';
+
+  const allGG=[...gelirler.map(g=>({...g,tur:'Gelir'})),...giderler.map(g=>({...g,tur:'Gider'}))].sort((a,b)=>(b.tarih||'').localeCompare(a.tarih||'')).slice(0,6);
+  document.getElementById('dashGGBody').innerHTML=allGG.length?allGG.map(d=>{
+    const isG=d.tur==='Gelir';
+    return `<tr><td>${esc(d.tarih)}</td><td><span class="px-2 py-1 rounded-full text-xs font-semibold ${isG?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${d.tur}</span></td><td>${esc(d.aciklama)}</td><td class="${isG?'text-green-600':'text-red-600'} font-medium">${isG?'+':'-'}${fmt(d.tutar)}</td></tr>`;
+  }).join(''):'<tr><td colspan="4" class="text-center text-gray-400 py-4">Kayıt yok</td></tr>';
+}
+
+// ============ KATAR FİŞLERİ ============
+function renderKatar(){
+  const data=getD('katar');
+  const tbody=document.getElementById('katarBody');
+  let topTon=0,topKdvsiz=0,topKdvli=0;
+  tbody.innerHTML=data.map(d=>{
+    const ton=parseFloat(d.miktar)||0;
+    const kdvsiz=parseFloat(d.kdvsiz)||0;
+    const kdvli=parseFloat(d.kdvli)||0;
+    topTon+=ton;topKdvsiz+=kdvsiz;topKdvli+=kdvli;
+    return `<tr><td>${esc(d.tarih)}</td><td>${esc(d.fisNo)}</td><td>${esc(d.aciklama)}</td><td>${esc(d.cari)}</td><td>${esc(d.urun)}</td><td>${fmt(d.birimFiyat)}</td><td>${fmt(kdvsiz)}</td><td>${fmt(kdvli)}</td><td><button class="btn btn-red btn-sm" onclick="deleteItem('katar','${d.id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+  }).join('');
+  document.getElementById('katarToplamTon').textContent=fmtNum(topTon);
+  document.getElementById('katarToplamKDVsiz').textContent=fmt(topKdvsiz);
+  document.getElementById('katarToplamKDVli').textContent=fmt(topKdvli);
+}
+function openKatarModal(editId){
+  const d=editId?getD('katar').find(x=>x.id===editId):null;
+  const cariler=getD('cariler');
+  const cariOpts=cariler.map(c=>`<option value="${esc(c.ad)}" ${d&&d.cari===c.ad?'selected':''}>${esc(c.ad)}</option>`).join('');
+  const html=`<h3 class="font-bold text-lg mb-4 text-gray-800">${d?'Kayıt Düzenle':'Yeni Kayıt Oluştur'}</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div><label class="form-label">Tarih</label><input id="mKatarTarih" type="date" class="form-input" value="${d?d.tarih:today()}"></div>
+    <div><label class="form-label">Fiş Numarası</label><input id="mKatarFisNo" class="form-input" value="${d?esc(d.fisNo):''}" placeholder="Fiş numarası"></div>
+    <div class="md:col-span-2"><label class="form-label">Açıklama</label><input id="mKatarAciklama" class="form-input" value="${d?esc(d.aciklama):''}" placeholder="Açıklama"></div>
+    <div><label class="form-label">Cari</label><select id="mKatarCari" class="form-input"><option value="">Seçiniz...</option>${cariOpts}</select></div>
+    <div><label class="form-label">Ürün</label><input id="mKatarUrun" class="form-input" value="${d?esc(d.urun):''}" placeholder="Ürün adı"></div>
+    <div><label class="form-label">Miktar (Ton)</label><input id="mKatarMiktar" type="number" step="0.01" class="form-input" value="${d?d.miktar:''}" placeholder="0" oninput="calcKatarKDV()"></div>
+    <div><label class="form-label">Birim Fiyat</label><input id="mKatarBirimFiyat" type="number" step="0.01" class="form-input" value="${d?d.birimFiyat:''}" placeholder="0" oninput="calcKatarKDV()"></div>
+    <div><label class="form-label">KDV'siz Fiyat</label><input id="mKatarKDVsiz" type="number" step="0.01" class="form-input" value="${d?d.kdvsiz:''}" placeholder="Otomatik" oninput="document.getElementById('mKatarKDVli').value=(parseFloat(this.value)*1.2).toFixed(2)"></div>
+    <div><label class="form-label">KDV'li Fiyat (%20)</label><input id="mKatarKDVli" type="number" step="0.01" class="form-input" value="${d?d.kdvli:''}" placeholder="Otomatik"></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveKatar('${d?d.id:''}')" class="btn btn-blue"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);
+}
+function calcKatarKDV(){
+  const miktar=parseFloat(document.getElementById('mKatarMiktar').value)||0;
+  const bf=parseFloat(document.getElementById('mKatarBirimFiyat').value)||0;
+  const toplam=miktar*bf;
+  document.getElementById('mKatarKDVsiz').value=toplam.toFixed(2);
+  document.getElementById('mKatarKDVli').value=(toplam*1.2).toFixed(2);
+}
+function saveKatar(editId){
+  const rec={id:editId||genId(),tarih:document.getElementById('mKatarTarih').value,fisNo:document.getElementById('mKatarFisNo').value,aciklama:document.getElementById('mKatarAciklama').value,cari:document.getElementById('mKatarCari').value,urun:document.getElementById('mKatarUrun').value,miktar:document.getElementById('mKatarMiktar').value,birimFiyat:document.getElementById('mKatarBirimFiyat').value,kdvsiz:document.getElementById('mKatarKDVsiz').value,kdvli:document.getElementById('mKatarKDVli').value};
+  let data=getD('katar');
+  if(editId){data=data.map(d=>d.id===editId?rec:d);}else{data.push(rec);}
+  setD('katar',data);closeModal();renderKatar();toast('Kayıt kaydedildi');
+}
+
+// ============ CARİLER ============
+let selectedCariId=null;
+function renderCariler(){
+  const data=getD('cariler');
+  const katar=getD('katar');
+  const tbody=document.getElementById('cariBody');
+  tbody.innerHTML=data.map(c=>{
+    const toplamSatis=katar.filter(k=>k.cari===c.ad).reduce((s,k)=>s+(parseFloat(k.kdvli)||0),0);
+    const bakiye=toplamSatis-(parseFloat(c.onOdeme)||0);
+    c.bakiye=bakiye;
+    return `<tr class="cursor-pointer" onclick="openCariDetail('${c.id}')"><td class="font-semibold">${esc(c.ad)}</td><td>${esc(c.telefon||'-')}</td><td>${esc(c.plaka||'-')}</td><td class="text-green-600 font-medium">${fmt(c.onOdeme||0)}</td><td class="${bakiye>0?'text-red-600':'text-green-600'} font-medium">${fmt(bakiye)}</td><td class="flex gap-1"><button class="btn btn-gray btn-sm" onclick="event.stopPropagation();openCariModal('${c.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-red btn-sm" onclick="event.stopPropagation();deleteItem('cariler','${c.id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+  }).join('');
+  setD('cariler',data);
+}
+function openCariModal(editId){
+  const d=editId?getD('cariler').find(x=>x.id===editId):null;
+  const html=`<h3 class="font-bold text-lg mb-4 text-gray-800">${d?'Cari Düzenle':'Yeni Cari Ekle'}</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div><label class="form-label">Cari Adı</label><input id="mCariAd" class="form-input" value="${d?esc(d.ad):''}" placeholder="Firma/Şahıs adı"></div>
+    <div><label class="form-label">Telefon</label><input id="mCariTel" class="form-input" value="${d?esc(d.telefon):''}" placeholder="Telefon numarası"></div>
+    <div><label class="form-label">Plaka</label><input id="mCariPlaka" class="form-input" value="${d?esc(d.plaka):''}" placeholder="Plaka"></div>
+    <div><label class="form-label">Ön Ödeme (₺)</label><input id="mCariOnOdeme" type="number" step="0.01" class="form-input" value="${d?d.onOdeme||0:0}" placeholder="0"></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveCari('${d?d.id:''}')" class="btn btn-blue"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);
+}
+function saveCari(editId){
+  const rec={id:editId||genId(),ad:document.getElementById('mCariAd').value,telefon:document.getElementById('mCariTel').value,plaka:document.getElementById('mCariPlaka').value,onOdeme:document.getElementById('mCariOnOdeme').value||0};
+  let data=getD('cariler');
+  if(editId){data=data.map(d=>d.id===editId?rec:d);}else{data.push(rec);}
+  setD('cariler',data);closeModal();renderCariler();toast('Cari kaydedildi');
+}
+function openCariDetail(cariId){
+  selectedCariId=cariId;
+  document.getElementById('cariDetailPanel').classList.remove('hidden');
+  document.getElementById('cariFilterMonth').value='';
+  document.getElementById('cariFilterPlate').value='';
+  renderCariDetail();
+}
+function closeCariDetail(){selectedCariId=null;document.getElementById('cariDetailPanel').classList.add('hidden');}
+function renderCariDetail(){
+  if(!selectedCariId)return;
+  const cari=getD('cariler').find(c=>c.id===selectedCariId);
+  if(!cari)return;
+  document.getElementById('cariDetailName').textContent=cari.ad;
+  const katar=getD('katar').filter(k=>k.cari===cari.ad);
+  const month=document.getElementById('cariFilterMonth').value;
+  const plate=document.getElementById('cariFilterPlate').value.toLowerCase();
+  let filtered=katar;
+  if(month)filtered=filtered.filter(k=>k.tarih&&k.tarih.substring(5,7)===month);
+  if(plate)filtered=filtered.filter(k=>(k.urun||'').toLowerCase().includes(plate)||(k.aciklama||'').toLowerCase().includes(plate));
+  const toplam=filtered.reduce((s,k)=>s+(parseFloat(k.kdvli)||0),0);
+  const onOdeme=parseFloat(cari.onOdeme)||0;
+  const bakiye=toplam-onOdeme;
+  document.getElementById('cariDetailToplam').textContent=fmt(toplam);
+  document.getElementById('cariDetailOnOdeme').textContent=fmt(onOdeme);
+  document.getElementById('cariDetailBakiye').textContent=fmt(bakiye);
+  const tbody=document.getElementById('cariDetailBody');
+  tbody.innerHTML=filtered.map(d=>`<tr><td>${esc(d.tarih)}</td><td>${esc(d.fisNo)}</td><td>${esc(d.aciklama)}</td><td>${esc(d.urun)}</td><td>${fmt(d.kdvsiz)}</td><td>${fmt(d.kdvli)}</td></tr>`).join('')||'<tr><td colspan="6" class="text-center text-gray-400 py-4">Kayıt bulunamadı</td></tr>';
+}
+function openOnOdemeModal(){
+  const cari=getD('cariler').find(c=>c.id===selectedCariId);
+  if(!cari)return;
+  const html=`<h3 class="font-bold text-lg mb-4">Ön Ödeme Ekle - ${esc(cari.ad)}</h3>
+  <div class="mb-4"><label class="form-label">Tutar (₺)</label><input id="mOnOdemeTutar" type="number" step="0.01" class="form-input" placeholder="0"></div>
+  <div class="flex gap-2 mt-4 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveOnOdeme()" class="btn btn-green"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);
+}
+function saveOnOdeme(){
+  const tutar=parseFloat(document.getElementById('mOnOdemeTutar').value)||0;
+  let data=getD('cariler');
+  data=data.map(c=>{if(c.id===selectedCariId){c.onOdeme=(parseFloat(c.onOdeme)||0)+tutar;}return c;});
+  setD('cariler',data);
+  let kasa=getKasa();kasa+=tutar;setKasa(kasa);
+  let gelirler=getD('gelirler');
+  gelirler.push({id:genId(),tarih:today(),aciklama:`Ön Ödeme - ${data.find(c=>c.id===selectedCariId)?.ad||''}`,tutar,kaynak:'Ön Ödeme'});
+  setD('gelirler',gelirler);
+  closeModal();renderCariDetail();renderCariler();toast('Ön ödeme eklendi');
+}
+function exportCariDetailExcel(){
+  const cari=getD('cariler').find(c=>c.id===selectedCariId);
+  if(!cari)return;
+  const katar=getD('katar').filter(k=>k.cari===cari.ad);
+  const month=document.getElementById('cariFilterMonth').value;
+  const plate=document.getElementById('cariFilterPlate').value.toLowerCase();
+  let filtered=katar;
+  if(month)filtered=filtered.filter(k=>k.tarih&&k.tarih.substring(5,7)===month);
+  if(plate)filtered=filtered.filter(k=>(k.urun||'').toLowerCase().includes(plate)||(k.aciklama||'').toLowerCase().includes(plate));
+  downloadXlsx(filtered.map(d=>({Tarih:d.tarih,FisNo:d.fisNo,Aciklama:d.aciklama,Urun:d.urun,KDVsiz:d.kdvsiz,KDVli:d.kdvli})),cari.ad+'_satislar');
+}
+
+// ============ GELİR / GİDER ============
+function renderGelirGider(){
+  const gelirler=getD('gelirler');
+  const giderler=getD('giderler');
+  const toplamGelir=gelirler.reduce((s,g)=>s+(parseFloat(g.tutar)||0),0);
+  const toplamGider=giderler.reduce((s,g)=>s+(parseFloat(g.tutar)||0),0);
+  document.getElementById('ggKasa').textContent=fmt(getKasa());
+  document.getElementById('ggToplamGelir').textContent=fmt(toplamGelir);
+  document.getElementById('ggToplamGider').textContent=fmt(toplamGider);
+  document.getElementById('ggNet').textContent=fmt(toplamGelir-toplamGider);
+  const all=[...gelirler.map(g=>({...g,tur:'Gelir'})),...giderler.map(g=>({...g,tur:'Gider'}))].sort((a,b)=>(b.tarih||'').localeCompare(a.tarih||''));
+  const tbody=document.getElementById('ggBody');
+  tbody.innerHTML=all.map(d=>{
+    const isGelir=d.tur==='Gelir';
+    return `<tr><td>${esc(d.tarih)}</td><td><span class="px-2 py-1 rounded-full text-xs font-semibold ${isGelir?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${d.tur}</span></td><td>${esc(d.aciklama)}</td><td>${esc(d.kaynak||'-')}</td><td class="${isGelir?'text-green-600':'text-red-600'} font-medium">${isGelir?'+':'-'}${fmt(d.tutar)}</td><td><button class="btn btn-red btn-sm" onclick="deleteGG('${isGelir?'gelirler':'giderler'}','${d.id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+  }).join('');
+}
+function openGelirModal(){
+  const html=`<h3 class="font-bold text-lg mb-4">Gelir Ekle</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div><label class="form-label">Tarih</label><input id="mGGTarih" type="date" class="form-input" value="${today()}"></div>
+    <div><label class="form-label">Tutar (₺)</label><input id="mGGTutar" type="number" step="0.01" class="form-input" placeholder="0"></div>
+    <div class="md:col-span-2"><label class="form-label">Açıklama</label><input id="mGGAciklama" class="form-input" placeholder="Açıklama"></div>
+    <div><label class="form-label">Kaynak</label><input id="mGGKaynak" class="form-input" placeholder="Örn: Satış, Tahsilat"></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveGelir()" class="btn btn-green"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);
+}
+function saveGelir(){
+  const rec={id:genId(),tarih:document.getElementById('mGGTarih').value,tutar:document.getElementById('mGGTutar').value,aciklama:document.getElementById('mGGAciklama').value,kaynak:document.getElementById('mGGKaynak').value};
+  let data=getD('gelirler');data.push(rec);setD('gelirler',data);
+  let kasa=getKasa();kasa+=parseFloat(rec.tutar)||0;setKasa(kasa);
+  closeModal();renderGelirGider();toast('Gelir eklendi');
+}
+function openGiderModal(){
+  const html=`<h3 class="font-bold text-lg mb-4">Gider Ekle</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div><label class="form-label">Tarih</label><input id="mGGTarih" type="date" class="form-input" value="${today()}"></div>
+    <div><label class="form-label">Tutar (₺)</label><input id="mGGTutar" type="number" step="0.01" class="form-input" placeholder="0"></div>
+    <div class="md:col-span-2"><label class="form-label">Açıklama</label><input id="mGGAciklama" class="form-input" placeholder="Açıklama"></div>
+    <div><label class="form-label">Kaynak</label><input id="mGGKaynak" class="form-input" placeholder="Örn: Malzeme, Fatura"></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveGider()" class="btn btn-red"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);
+}
+function saveGider(){
+  const rec={id:genId(),tarih:document.getElementById('mGGTarih').value,tutar:document.getElementById('mGGTutar').value,aciklama:document.getElementById('mGGAciklama').value,kaynak:document.getElementById('mGGKaynak').value};
+  let data=getD('giderler');data.push(rec);setD('giderler',data);
+  let kasa=getKasa();kasa-=parseFloat(rec.tutar)||0;setKasa(kasa);
+  closeModal();renderGelirGider();toast('Gider eklendi');
+}
+function openTahsilatModal(){
+  const cariler=getD('cariler');
+  const opts=cariler.map(c=>`<option value="${c.id}">${esc(c.ad)}</option>`).join('');
+  const html=`<h3 class="font-bold text-lg mb-4">Tahsilat Yap</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div><label class="form-label">Cari</label><select id="mTahCari" class="form-input"><option value="">Seçiniz...</option>${opts}</select></div>
+    <div><label class="form-label">Tutar (₺)</label><input id="mTahTutar" type="number" step="0.01" class="form-input" placeholder="0"></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveTahsilat()" class="btn btn-green"><i class="fas fa-save"></i> Tahsil Et</button></div>`;
+  showModal(html);
+}
+function saveTahsilat(){
+  const cariId=document.getElementById('mTahCari').value;
+  const tutar=parseFloat(document.getElementById('mTahTutar').value)||0;
+  if(!cariId||!tutar){alert('Lütfen cari ve tutar girin');return;}
+  const cari=getD('cariler').find(c=>c.id===cariId);
+  let cariler=getD('cariler');
+  cariler=cariler.map(c=>{if(c.id===cariId){c.onOdeme=(parseFloat(c.onOdeme)||0)+tutar;}return c;});
+  setD('cariler',cariler);
+  let kasa=getKasa();kasa+=tutar;setKasa(kasa);
+  let gelirler=getD('gelirler');
+  gelirler.push({id:genId(),tarih:today(),aciklama:`Tahsilat - ${cari?.ad||''}`,tutar,kaynak:'Tahsilat'});
+  setD('gelirler',gelirler);
+  closeModal();renderGelirGider();renderCariler();toast('Tahsilat kaydedildi');
+}
+function deleteGG(type,id){
+  if(!confirm('Silmek istediğinize emin misiniz?'))return;
+  let data=getD(type);
+  const item=data.find(d=>d.id===id);
+  data=data.filter(d=>d.id!==id);
+  setD(type,data);
+  if(item){
+    let kasa=getKasa();
+    if(type==='gelirler')kasa-=parseFloat(item.tutar)||0;else kasa+=parseFloat(item.tutar)||0;
+    setKasa(kasa);
+  }
+  renderGelirGider();
+}
+
+// ============ YAKIT ============
+function renderYakit(){
+  const data=getD('yakit');
+  const tbody=document.getElementById('yakitBody');
+  let toplam=0;
+  tbody.innerHTML=data.map(d=>{
+    const t=parseFloat(d.toplamFiyat)||0;toplam+=t;
+    return `<tr><td>${esc(d.tarih)}</td><td>${esc(d.fisNo)}</td><td>${esc(d.plaka)}</td><td>${esc(d.sofor)}</td><td>${esc(d.teslimEden)}</td><td>${esc(d.saat)}</td><td>${esc(d.km)}</td><td>${esc(d.lt)}</td><td>${fmt(d.birimFiyat)}</td><td class="font-semibold">${fmt(t)}</td><td><button class="btn btn-red btn-sm" onclick="deleteItem('yakit','${d.id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+  }).join('');
+  document.getElementById('yakitToplam').textContent=fmt(toplam);
+}
+function openYakitModal(){
+  const html=`<h3 class="font-bold text-lg mb-4">Yeni Yakıt Kaydı</h3>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div><label class="form-label">Tarih</label><input id="mYakTarih" type="date" class="form-input" value="${today()}"></div>
+    <div><label class="form-label">Fiş No</label><input id="mYakFisNo" class="form-input" placeholder="Fiş numarası"></div>
+    <div><label class="form-label">Plaka</label><input id="mYakPlaka" class="form-input" placeholder="Plaka"></div>
+    <div><label class="form-label">Şoför İsmi</label><input id="mYakSofor" class="form-input" placeholder="Şoför adı"></div>
+    <div><label class="form-label">Teslim Eden</label><input id="mYakTeslim" class="form-input" placeholder="Teslim eden"></div>
+    <div><label class="form-label">Saat</label><input id="mYakSaat" type="time" class="form-input"></div>
+    <div><label class="form-label">KM</label><input id="mYakKm" type="number" class="form-input" placeholder="0"></div>
+    <div><label class="form-label">LT</label><input id="mYakLt" type="number" step="0.01" class="form-input" placeholder="0" oninput="calcYakitToplam()"></div>
+    <div><label class="form-label">Birim Fiyat</label><input id="mYakBF" type="number" step="0.01" class="form-input" placeholder="0" oninput="calcYakitToplam()"></div>
+    <div class="md:col-span-3"><label class="form-label">Toplam Fiyat</label><input id="mYakToplam" type="number" step="0.01" class="form-input" placeholder="Otomatik"></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveYakit()" class="btn btn-blue"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);
+}
+function calcYakitToplam(){
+  const lt=parseFloat(document.getElementById('mYakLt').value)||0;
+  const bf=parseFloat(document.getElementById('mYakBF').value)||0;
+  document.getElementById('mYakToplam').value=(lt*bf).toFixed(2);
+}
+function saveYakit(){
+  const rec={id:genId(),tarih:document.getElementById('mYakTarih').value,fisNo:document.getElementById('mYakFisNo').value,plaka:document.getElementById('mYakPlaka').value,sofor:document.getElementById('mYakSofor').value,teslimEden:document.getElementById('mYakTeslim').value,saat:document.getElementById('mYakSaat').value,km:document.getElementById('mYakKm').value,lt:document.getElementById('mYakLt').value,birimFiyat:document.getElementById('mYakBF').value,toplamFiyat:document.getElementById('mYakToplam').value};
+  let data=getD('yakit');data.push(rec);setD('yakit',data);closeModal();renderYakit();toast('Yakıt kaydı eklendi');
+}
+
+// ============ PERSONEL ============
+let activePersonelSub='ozluk';
+function showPersonelSub(sub){
+  activePersonelSub=sub;
+  document.querySelectorAll('#page-personel .sub-tab').forEach((t,i)=>{
+    const subs=['ozluk','izin','giriscikis','maas'];
+    t.classList.toggle('active',subs[i]===sub);
+  });
+  document.querySelectorAll('#page-personel .sub-page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('personelSub-'+sub).classList.add('active');
+  renderPersonel();
+}
+function renderPersonel(){renderOzluk();renderIzin();renderGirisCikis();renderMaas();}
+function renderOzluk(){
+  const data=getD('personeller');
+  document.getElementById('ozlukBody').innerHTML=data.map(p=>`<tr><td class="font-semibold">${esc(p.ad)}</td><td>${esc(p.tc)}</td><td>${esc(p.telefon)}</td><td>${esc(p.gorev)}</td><td>${esc(p.baslangic)}</td><td class="flex gap-1"><button class="btn btn-gray btn-sm" onclick="openPersonelModal('${p.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-red btn-sm" onclick="deleteItem('personeller','${p.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')||'<tr><td colspan="6" class="text-center text-gray-400 py-4">Kayıt yok</td></tr>';
+}
+function renderIzin(){
+  const data=getD('izinler');
+  document.getElementById('izinBody').innerHTML=data.map(p=>`<tr><td>${esc(p.personel)}</td><td>${esc(p.baslangic)}</td><td>${esc(p.bitis)}</td><td>${esc(p.gun)}</td><td>${esc(p.aciklama)}</td><td><button class="btn btn-red btn-sm" onclick="deleteItem('izinler','${p.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')||'<tr><td colspan="6" class="text-center text-gray-400 py-4">Kayıt yok</td></tr>';
+}
+function renderGirisCikis(){
+  const data=getD('giriscikisler');
+  document.getElementById('giriscikisBody').innerHTML=data.map(p=>`<tr><td>${esc(p.personel)}</td><td>${esc(p.tarih)}</td><td>${esc(p.giris)}</td><td>${esc(p.cikis)}</td><td>${esc(p.cikisSebebi)}</td><td><button class="btn btn-red btn-sm" onclick="deleteItem('giriscikisler','${p.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')||'<tr><td colspan="6" class="text-center text-gray-400 py-4">Kayıt yok</td></tr>';
+}
+function renderMaas(){
+  const data=getD('maaslar');
+  document.getElementById('maasBody').innerHTML=data.map(p=>`<tr><td>${esc(p.personel)}</td><td>${esc(p.ayYil)}</td><td class="text-green-600">${fmt(p.bankadan)}</td><td class="text-blue-600">${fmt(p.elden)}</td><td>${esc(p.mesaaiSaat||0)} saat</td><td class="text-orange-600">${fmt(p.mesaaiTutar)}</td><td class="font-bold">${fmt(p.netMaas)}</td><td><button class="btn btn-red btn-sm" onclick="deleteItem('maaslar','${p.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')||'<tr><td colspan="8" class="text-center text-gray-400 py-4">Kayıt yok</td></tr>';
+}
+function openPersonelModal(editId){
+  const d=editId?getD('personeller').find(x=>x.id===editId):null;
+  const html=`<h3 class="font-bold text-lg mb-4">${d?'Personel Düzenle':'Yeni Personel'}</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div><label class="form-label">Ad Soyad</label><input id="mPerAd" class="form-input" value="${d?esc(d.ad):''}"></div>
+    <div><label class="form-label">TC No</label><input id="mPerTc" class="form-input" value="${d?esc(d.tc):''}"></div>
+    <div><label class="form-label">Telefon</label><input id="mPerTel" class="form-input" value="${d?esc(d.telefon):''}"></div>
+    <div><label class="form-label">Görev</label><input id="mPerGorev" class="form-input" value="${d?esc(d.gorev):''}"></div>
+    <div><label class="form-label">Başlangıç Tarihi</label><input id="mPerBas" type="date" class="form-input" value="${d?d.baslangic:''}"></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="savePersonel('${d?d.id:''}')" class="btn btn-blue"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);
+}
+function savePersonel(editId){
+  const rec={id:editId||genId(),ad:document.getElementById('mPerAd').value,tc:document.getElementById('mPerTc').value,telefon:document.getElementById('mPerTel').value,gorev:document.getElementById('mPerGorev').value,baslangic:document.getElementById('mPerBas').value};
+  let data=getD('personeller');
+  if(editId){data=data.map(d=>d.id===editId?rec:d);}else{data.push(rec);}
+  setD('personeller',data);closeModal();renderPersonel();toast('Personel kaydedildi');
+}
+function getPersonelOpts(){return getD('personeller').map(p=>`<option value="${esc(p.ad)}">${esc(p.ad)}</option>`).join('')}
+function openIzinModal(){
+  const html=`<h3 class="font-bold text-lg mb-4">İzin Ekle</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="md:col-span-2"><label class="form-label">Personel</label><select id="mIzPer" class="form-input"><option value="">Seçiniz...</option>${getPersonelOpts()}</select></div>
+    <div><label class="form-label">Başlangıç</label><input id="mIzBas" type="date" class="form-input"></div>
+    <div><label class="form-label">Bitiş</label><input id="mIzBitis" type="date" class="form-input"></div>
+    <div><label class="form-label">Gün Sayısı</label><input id="mIzGun" type="number" class="form-input" placeholder="0"></div>
+    <div class="md:col-span-2"><label class="form-label">Açıklama</label><input id="mIzAck" class="form-input" placeholder="İzin sebebi"></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveIzin()" class="btn btn-blue"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);
+}
+function saveIzin(){
+  const rec={id:genId(),personel:document.getElementById('mIzPer').value,baslangic:document.getElementById('mIzBas').value,bitis:document.getElementById('mIzBitis').value,gun:document.getElementById('mIzGun').value,aciklama:document.getElementById('mIzAck').value};
+  let data=getD('izinler');data.push(rec);setD('izinler',data);closeModal();renderPersonel();toast('İzin eklendi');
+}
+function openGirisCikisModal(){
+  const html=`<h3 class="font-bold text-lg mb-4">İşe Giriş / Çıkış</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="md:col-span-2"><label class="form-label">Personel</label><select id="mGCPer" class="form-input"><option value="">Seçiniz...</option>${getPersonelOpts()}</select></div>
+    <div><label class="form-label">Tarih</label><input id="mGCTarih" type="date" class="form-input" value="${today()}"></div>
+    <div><label class="form-label">Giriş Saati</label><input id="mGCGiris" type="time" class="form-input"></div>
+    <div><label class="form-label">Çıkış Saati</label><input id="mGCCikis" type="time" class="form-input"></div>
+    <div><label class="form-label">Çıkış Sebebi</label><input id="mGCSebep" class="form-input" placeholder="İzin, rapor, vb."></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveGirisCikis()" class="btn btn-blue"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);
+}
+function saveGirisCikis(){
+  const rec={id:genId(),personel:document.getElementById('mGCPer').value,tarih:document.getElementById('mGCTarih').value,giris:document.getElementById('mGCGiris').value,cikis:document.getElementById('mGCCikis').value,cikisSebebi:document.getElementById('mGCSebep').value};
+  let data=getD('giriscikisler');data.push(rec);setD('giriscikisler',data);closeModal();renderPersonel();toast('Kayıt eklendi');
+}
+function openMaasModal(){
+  const html=`<h3 class="font-bold text-lg mb-4">Maaş Ekle</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="md:col-span-2"><label class="form-label">Personel</label><select id="mMsPer" class="form-input"><option value="">Seçiniz...</option>${getPersonelOpts()}</select></div>
+    <div><label class="form-label">Ay / Yıl</label><input id="mMsAy" type="month" class="form-input"></div>
+    <div><label class="form-label">Bankadan Yatırılan (₺)</label><input id="mMsBanka" type="number" step="0.01" class="form-input" placeholder="0" oninput="calcMaas()"></div>
+    <div><label class="form-label">Elden Verilen (₺)</label><input id="mMsElden" type="number" step="0.01" class="form-input" placeholder="0" oninput="calcMaas()"></div>
+    <div><label class="form-label">Mesaai Süresi (Saat)</label><input id="mMsSaat" type="number" class="form-input" placeholder="0" oninput="calcMaas()"></div>
+    <div><label class="form-label">Mesaai Ücreti (₺/saat)</label><input id="mMsSaatUcret" type="number" step="0.01" class="form-input" placeholder="0" oninput="calcMaas()"></div>
+    <div><label class="form-label">Toplam Mesaai Ücreti</label><input id="mMsMesaaiToplam" type="number" step="0.01" class="form-input" placeholder="Otomatik"></div>
+    <div><label class="form-label">Net Maaş (₺)</label><input id="mMsNet" type="number" step="0.01" class="form-input" placeholder="Otomatik"></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveMaas()" class="btn btn-blue"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);
+}
+function calcMaas(){
+  const saat=parseFloat(document.getElementById('mMsSaat').value)||0;
+  const ucret=parseFloat(document.getElementById('mMsSaatUcret').value)||0;
+  const mesaaiToplam=saat*ucret;
+  document.getElementById('mMsMesaaiToplam').value=mesaaiToplam.toFixed(2);
+  const banka=parseFloat(document.getElementById('mMsBanka').value)||0;
+  const elden=parseFloat(document.getElementById('mMsElden').value)||0;
+  document.getElementById('mMsNet').value=(banka+elden+mesaaiToplam).toFixed(2);
+}
+function saveMaas(){
+  const rec={id:genId(),personel:document.getElementById('mMsPer').value,ayYil:document.getElementById('mMsAy').value,bankadan:document.getElementById('mMsBanka').value,elden:document.getElementById('mMsElden').value,mesaaiSaat:document.getElementById('mMsSaat').value,mesaaiTutar:document.getElementById('mMsMesaaiToplam').value,netMaas:document.getElementById('mMsNet').value};
+  let data=getD('maaslar');data.push(rec);setD('maaslar',data);closeModal();renderPersonel();toast('Maaş eklendi');
+}
+
+// ============ FATURALAR ============
+function renderFaturalar(){
+  const data=getD('faturalar');
+  const tbody=document.getElementById('faturaBody');
+  let topTon=0,topKdvsiz=0,topKdvli=0;
+  tbody.innerHTML=data.map(d=>{
+    const ton=parseFloat(d.miktar)||0;const kdvsiz=parseFloat(d.kdvsiz)||0;const kdvli=parseFloat(d.kdvli)||0;
+    topTon+=ton;topKdvsiz+=kdvsiz;topKdvli+=kdvli;
+    return `<tr><td>${esc(d.tarih)}</td><td>${esc(d.faturaNo)}</td><td>${esc(d.unvan)}</td><td>${esc(d.vkn)}</td><td>${esc(d.urunCinsi)}</td><td>${fmtNum(ton)}</td><td>${fmt(d.birimFiyat)}</td><td>${fmt(kdvsiz)}</td><td>${fmt(kdvli)}</td><td><button class="btn btn-red btn-sm" onclick="deleteItem('faturalar','${d.id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+  }).join('');
+  document.getElementById('faturaToplamTon').textContent=fmtNum(topTon);
+  document.getElementById('faturaToplamKdvsiz').textContent=fmt(topKdvsiz);
+  document.getElementById('faturaToplamKdvli').textContent=fmt(topKdvli);
+}
+function openFaturaModal(){
+  const html=`<h3 class="font-bold text-lg mb-4">Yeni Fatura</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div><label class="form-label">Tarih</label><input id="mFatTarih" type="date" class="form-input" value="${today()}"></div>
+    <div><label class="form-label">Fatura No</label><input id="mFatNo" class="form-input" placeholder="Fatura numarası"></div>
+    <div><label class="form-label">Ünvan</label><input id="mFatUnvan" class="form-input" placeholder="Firma ünvanı"></div>
+    <div><label class="form-label">VKN / TCKN</label><input id="mFatVkn" class="form-input" placeholder="Vergi no"></div>
+    <div><label class="form-label">Ürün Cinsi</label><input id="mFatUrun" class="form-input" placeholder="Ürün"></div>
+    <div><label class="form-label">Miktar (Ton)</label><input id="mFatMiktar" type="number" step="0.01" class="form-input" placeholder="0" oninput="calcFaturaKDV()"></div>
+    <div><label class="form-label">Birim Fiyat</label><input id="mFatBF" type="number" step="0.01" class="form-input" placeholder="0" oninput="calcFaturaKDV()"></div>
+    <div><label class="form-label">Toplam (KDV'siz)</label><input id="mFatKDVsiz" type="number" step="0.01" class="form-input" placeholder="Otomatik" oninput="document.getElementById('mFatKDVli').value=(parseFloat(this.value)*1.2).toFixed(2)"></div>
+    <div><label class="form-label">Net Tutar (KDV'li - %20)</label><input id="mFatKDVli" type="number" step="0.01" class="form-input" placeholder="Otomatik"></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveFatura()" class="btn btn-blue"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);
+}
+function calcFaturaKDV(){
+  const m=parseFloat(document.getElementById('mFatMiktar').value)||0;
+  const bf=parseFloat(document.getElementById('mFatBF').value)||0;
+  const t=m*bf;
+  document.getElementById('mFatKDVsiz').value=t.toFixed(2);
+  document.getElementById('mFatKDVli').value=(t*1.2).toFixed(2);
+}
+function saveFatura(){
+  const rec={id:genId(),tarih:document.getElementById('mFatTarih').value,faturaNo:document.getElementById('mFatNo').value,unvan:document.getElementById('mFatUnvan').value,vkn:document.getElementById('mFatVkn').value,urunCinsi:document.getElementById('mFatUrun').value,miktar:document.getElementById('mFatMiktar').value,birimFiyat:document.getElementById('mFatBF').value,kdvsiz:document.getElementById('mFatKDVsiz').value,kdvli:document.getElementById('mFatKDVli').value};
+  let data=getD('faturalar');data.push(rec);setD('faturalar',data);closeModal();renderFaturalar();toast('Fatura kaydedildi');
+}
+
+// ============ İRSALİYE ============
+function renderIrsaliye(){
+  const data=getD('irsaliyeler');
+  const tbody=document.getElementById('irsBody');
+  let topTon=0,topKdvsiz=0,topKdvli=0;
+  tbody.innerHTML=data.map(d=>{
+    const ton=parseFloat(d.miktar)||0;const kdvsiz=parseFloat(d.kdvsiz)||0;const kdvli=parseFloat(d.kdvli)||0;
+    topTon+=ton;topKdvsiz+=kdvsiz;topKdvli+=kdvli;
+    return `<tr><td>${esc(d.tarih)}</td><td>${esc(d.faturaNo)}</td><td>${esc(d.unvan)}</td><td>${esc(d.vkn)}</td><td>${esc(d.urunCinsi)}</td><td>${fmtNum(ton)}</td><td>${fmt(d.birimFiyat)}</td><td>${fmt(kdvsiz)}</td><td>${fmt(kdvli)}</td><td><button class="btn btn-red btn-sm" onclick="deleteItem('irsaliyeler','${d.id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+  }).join('');
+  document.getElementById('irsToplamTon').textContent=fmtNum(topTon);
+  document.getElementById('irsToplamKdvsiz').textContent=fmt(topKdvsiz);
+  document.getElementById('irsToplamKdvli').textContent=fmt(topKdvli);
+}
+function openIrsaliyeModal(){
+  const html=`<h3 class="font-bold text-lg mb-4">Yeni İrsaliye</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div><label class="form-label">Tarih</label><input id="mIrTarih" type="date" class="form-input" value="${today()}"></div>
+    <div><label class="form-label">İrsaliye No</label><input id="mIrNo" class="form-input" placeholder="İrsaliye numarası"></div>
+    <div><label class="form-label">Ünvan</label><input id="mIrUnvan" class="form-input" placeholder="Firma ünvanı"></div>
+    <div><label class="form-label">VKN / TCKN</label><input id="mIrVkn" class="form-input" placeholder="Vergi no"></div>
+    <div><label class="form-label">Ürün Cinsi</label><input id="mIrUrun" class="form-input" placeholder="Ürün"></div>
+    <div><label class="form-label">Miktar (Ton)</label><input id="mIrMiktar" type="number" step="0.01" class="form-input" placeholder="0" oninput="calcIrsKDV()"></div>
+    <div><label class="form-label">Birim Fiyat</label><input id="mIrBF" type="number" step="0.01" class="form-input" placeholder="0" oninput="calcIrsKDV()"></div>
+    <div><label class="form-label">Toplam (KDV'siz)</label><input id="mIrKDVsiz" type="number" step="0.01" class="form-input" placeholder="Otomatik" oninput="document.getElementById('mIrKDVli').value=(parseFloat(this.value)*1.2).toFixed(2)"></div>
+    <div><label class="form-label">Net Tutar (KDV'li - %20)</label><input id="mIrKDVli" type="number" step="0.01" class="form-input" placeholder="Otomatik"></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveIrsaliye()" class="btn btn-blue"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);
+}
+function calcIrsKDV(){
+  const m=parseFloat(document.getElementById('mIrMiktar').value)||0;
+  const bf=parseFloat(document.getElementById('mIrBF').value)||0;
+  const t=m*bf;
+  document.getElementById('mIrKDVsiz').value=t.toFixed(2);
+  document.getElementById('mIrKDVli').value=(t*1.2).toFixed(2);
+}
+function saveIrsaliye(){
+  const rec={id:genId(),tarih:document.getElementById('mIrTarih').value,faturaNo:document.getElementById('mIrNo').value,unvan:document.getElementById('mIrUnvan').value,vkn:document.getElementById('mIrVkn').value,urunCinsi:document.getElementById('mIrUrun').value,miktar:document.getElementById('mIrMiktar').value,birimFiyat:document.getElementById('mIrBF').value,kdvsiz:document.getElementById('mIrKDVsiz').value,kdvli:document.getElementById('mIrKDVli').value};
+  let data=getD('irsaliyeler');data.push(rec);setD('irsaliyeler',data);closeModal();renderIrsaliye();toast('İrsaliye kaydedildi');
+}
+
+// ============ SEVK FİŞLERİ ============
+function handleSevkUpload(event){
+  const files=event.target.files;
+  if(!files.length)return;
+  let pending=files.length;
+  for(let f of files){
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const sevk=getD('sevkfisleri');
+      sevk.push({id:genId(),name:f.name,size:f.size,date:new Date().toLocaleDateString('tr-TR'),data:e.target.result});
+      setD('sevkfisleri',sevk);
+      pending--;
+      if(pending<=0){renderSevk();toast('PDF yüklendi');}
+    };
+    reader.readAsDataURL(f);
+  }
+  event.target.value='';
+}
+function renderSevk(){
+  const search=(document.getElementById('sevkSearch')?.value||'').toLowerCase();
+  let data=getD('sevkfisleri');
+  if(search)data=data.filter(d=>d.name.toLowerCase().includes(search));
+  document.getElementById('sevkBody').innerHTML=data.map(d=>`<tr><td>${esc(d.name)}</td><td>${(d.size/1024).toFixed(1)} KB</td><td>${esc(d.date)}</td><td class="flex gap-1"><a href="${d.data}" download="${esc(d.name)}" class="btn btn-green btn-sm"><i class="fas fa-download"></i></a><button class="btn btn-red btn-sm" onclick="deleteSevk('${d.id}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')||'<tr><td colspan="4" class="text-center text-gray-400 py-4">PDF dosyası yok</td></tr>';
+}
+function deleteSevk(id){
+  if(!confirm('Silmek istediğinize emin misiniz?'))return;
+  let data=getD('sevkfisleri');data=data.filter(d=>d.id!==id);setD('sevkfisleri',data);renderSevk();
+}
+
+// ============ SANAYİ GİDERLERİ ============
+function renderSanayi(){
+  const data=getD('sanayigiderleri');
+  const tbody=document.getElementById('sanayiBody');
+  let alinan=0,verilen=0;
+  tbody.innerHTML=data.map(d=>{
+    alinan+=parseFloat(d.alinanOdeme)||0;verilen+=parseFloat(d.verilenOdeme)||0;
+    return `<tr><td>${esc(d.tarih)}</td><td>${esc(d.fisFaturaNo)}</td><td>${esc(d.aciklama)}</td><td>${esc(d.teslimAlan)}</td><td>${esc(d.miktar)}</td><td>${fmt(d.fiyat)}</td><td class="text-green-600">${fmt(d.alinanOdeme)}</td><td class="text-red-600">${fmt(d.verilenOdeme)}</td><td><button class="btn btn-red btn-sm" onclick="deleteItem('sanayigiderleri','${d.id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+  }).join('');
+  document.getElementById('sanayiAlinan').textContent=fmt(alinan);
+  document.getElementById('sanayiVerilen').textContent=fmt(verilen);
+}
+function openSanayiModal(){
+  const html=`<h3 class="font-bold text-lg mb-4">Sanayi Gideri - Yeni Kayıt</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div><label class="form-label">Tarih</label><input id="mSanTarih" type="date" class="form-input" value="${today()}"></div>
+    <div><label class="form-label">Fiş / Fatura No</label><input id="mSanFisNo" class="form-input" placeholder="Fiş/Fatura no"></div>
+    <div class="md:col-span-2"><label class="form-label">Açıklama</label><input id="mSanAck" class="form-input" placeholder="Açıklama"></div>
+    <div><label class="form-label">Teslim Alan</label><input id="mSanTeslim" class="form-input" placeholder="Teslim alan kişi"></div>
+    <div><label class="form-label">Miktar</label><input id="mSanMiktar" class="form-input" placeholder="0"></div>
+    <div><label class="form-label">Fiyat (₺)</label><input id="mSanFiyat" type="number" step="0.01" class="form-input" placeholder="0"></div>
+    <div><label class="form-label">Alınan Ödeme (₺)</label><input id="mSanAlinan" type="number" step="0.01" class="form-input" placeholder="0"></div>
+    <div><label class="form-label">Verilen Ödeme (₺)</label><input id="mSanVerilen" type="number" step="0.01" class="form-input" placeholder="0"></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveSanayi()" class="btn btn-blue"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);
+}
+function saveSanayi(){
+  const rec={id:genId(),tarih:document.getElementById('mSanTarih').value,fisFaturaNo:document.getElementById('mSanFisNo').value,aciklama:document.getElementById('mSanAck').value,teslimAlan:document.getElementById('mSanTeslim').value,miktar:document.getElementById('mSanMiktar').value,fiyat:document.getElementById('mSanFiyat').value,alinanOdeme:document.getElementById('mSanAlinan').value,verilenOdeme:document.getElementById('mSanVerilen').value};
+  let data=getD('sanayigiderleri');data.push(rec);setD('sanayigiderleri',data);
+  const alinan=parseFloat(rec.alinanOdeme)||0;const verilen=parseFloat(rec.verilenOdeme)||0;
+  let kasa=getKasa();kasa+=alinan-verilen;setKasa(kasa);
+  closeModal();renderSanayi();toast('Kayıt eklendi');
+}
+
+// ============ TESİS ÇALIŞMA BİLGİSİ ============
+let tesisEditId=null;
+let tesisAciklamalar=[];
+function formatSure(dk){
+  dk=parseInt(dk,10)||0;
+  const s=Math.floor(dk/60);const d=dk%60;
+  return s+' saat '+d+' dk';
+}
+function renderTesis(){
+  const data=getD('tesiscalisma');
+  let toplamDk=0;
+  document.getElementById('tesisBody').innerHTML=data.map(d=>{
+    const dk=parseInt(d.calisilmayanDakika,10)||0;
+    toplamDk+=dk;
+    const sureTxt=d.calisilmayanSure||formatSure(dk);
+    return `<tr>
+      <td>${esc(d.tarih)}</td>
+      <td>${esc(d.baslamaSaati)}</td>
+      <td>${esc(d.paydosSaati)}</td>
+      <td class="font-semibold text-orange-600">${esc(sureTxt)}</td>
+      <td class="max-w-xs">${(d.aciklamalar||[]).map((a,i)=>`<div class="flex items-center gap-1 mb-1"><span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs">${i+1}. ${esc(a)}</span></div>`).join('')||'-'}</td>
+      <td class="flex gap-1"><button class="btn btn-gray btn-sm" onclick="openTesisModal('${d.id}')"><i class="fas fa-edit"></i></button><button class="btn btn-red btn-sm" onclick="deleteItem('tesiscalisma','${d.id}')"><i class="fas fa-trash"></i></button></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="6" class="text-center text-gray-400 py-4">Kayıt yok</td></tr>';
+  document.getElementById('tesisHesaplananSure').textContent=formatSure(toplamDk);
+  const man=JSON.parse(localStorage.getItem('mi_tesis_manuel_sure')||'{"saat":0,"dakika":0}');
+  document.getElementById('tesisManSaat').value=man.saat||'';
+  document.getElementById('tesisManDakika').value=man.dakika||'';
+}
+function saveTesisManuelSure(){
+  const saat=parseInt(document.getElementById('tesisManSaat').value,10)||0;
+  const dakika=parseInt(document.getElementById('tesisManDakika').value,10)||0;
+  localStorage.setItem('mi_tesis_manuel_sure',JSON.stringify({saat,dakika}));
+  toast('Çalışılmayan toplam süre kaydedildi');
+}
+function openTesisModal(editId){
+  tesisEditId=editId||null;
+  const d=tesisEditId?getD('tesiscalisma').find(x=>x.id===tesisEditId):null;
+  tesisAciklamalar=d?[...(d.aciklamalar||[])]:[];
+  const saat=d?Math.floor((parseInt(d.calisilmayanDakika,10)||0)/60):'';
+  const dk=d?(parseInt(d.calisilmayanDakika,10)||0)%60:'';
+  const html=`<h3 class="font-bold text-lg mb-4">${d?'Kayıt Düzenle':'Yeni Kayıt Oluştur'}</h3>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <div><label class="form-label">Tarih</label><input id="mTesTarih" type="date" class="form-input" value="${d?d.tarih:today()}"></div>
+    <div><label class="form-label">İşe Başlama Saati</label><input id="mTesBaslama" type="time" class="form-input" value="${d?d.baslamaSaati:''}"></div>
+    <div><label class="form-label">Paydos Saati</label><input id="mTesPaydos" type="time" class="form-input" value="${d?d.paydosSaati:''}"></div>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-3 rounded-xl" style="background:#fff7ed;border:1px solid #fed7aa">
+    <div class="md:col-span-2 text-sm font-semibold text-orange-800"><i class="fas fa-clock mr-1"></i> Çalışılmayan Süre (manuel)</div>
+    <div><label class="form-label">Saat</label><input id="mTesCalSaat" type="number" min="0" class="form-input" value="${saat}" placeholder="0"></div>
+    <div><label class="form-label">Dakika</label><input id="mTesCalDk" type="number" min="0" max="59" class="form-input" value="${dk}" placeholder="0"></div>
+  </div>
+  <div class="mb-4">
+    <div class="flex items-center justify-between mb-2">
+      <label class="form-label mb-0">Açıklamalar</label>
+      <button onclick="openTesisDescDialog()" class="btn btn-blue btn-sm"><i class="fas fa-plus"></i> Ekle</button>
+    </div>
+    <div id="tesisDescList" class="flex flex-wrap gap-2"></div>
+  </div>
+  <div class="flex gap-2 mt-5 justify-end"><button onclick="closeModal()" class="btn btn-gray">İptal</button><button onclick="saveTesis()" class="btn btn-blue"><i class="fas fa-save"></i> Kaydet</button></div>`;
+  showModal(html);renderTesisDescList();
+}
+function renderTesisDescList(){
+  const list=document.getElementById('tesisDescList');
+  if(!list)return;
+  list.innerHTML=tesisAciklamalar.map((a,i)=>`<div class="flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg"><span class="text-sm text-blue-800">${esc(a)}</span><button onclick="removeTesisDesc(${i})" class="text-red-400 hover:text-red-600 text-xs ml-1"><i class="fas fa-times"></i></button></div>`).join('')||'<span class="text-gray-400 text-sm">Henüz açıklama eklenmedi</span>';
+}
+function openTesisDescDialog(){document.getElementById('tesisDescDialog').classList.add('show');document.getElementById('tesisNewDesc').value='';}
+function closeTesisDescDialog(){document.getElementById('tesisDescDialog').classList.remove('show');}
+function addTesisDesc(){
+  const v=document.getElementById('tesisNewDesc').value.trim();
+  if(v){tesisAciklamalar.push(v);renderTesisDescList();closeTesisDescDialog();}
+}
+function removeTesisDesc(i){tesisAciklamalar.splice(i,1);renderTesisDescList();}
+function saveTesis(){
+  const saat=parseInt(document.getElementById('mTesCalSaat').value,10)||0;
+  const dk=parseInt(document.getElementById('mTesCalDk').value,10)||0;
+  const toplamDk=saat*60+dk;
+  const rec={id:tesisEditId||genId(),tarih:document.getElementById('mTesTarih').value,baslamaSaati:document.getElementById('mTesBaslama').value,paydosSaati:document.getElementById('mTesPaydos').value,calisilmayanDakika:toplamDk,calisilmayanSure:formatSure(toplamDk),aciklamalar:tesisAciklamalar};
+  let data=getD('tesiscalisma');
+  if(tesisEditId){data=data.map(d=>d.id===tesisEditId?rec:d);}else{data.push(rec);}
+  setD('tesiscalisma',data);closeModal();renderTesis();toast('Tesis kaydı kaydedildi');
+}
+
+// ============ FİRMA BİLGİLERİ ============
+function renderFirma(){
+  const f=getFirma();
+  document.getElementById('fUnvan').value=f.unvan||'';
+  document.getElementById('fKisaAd').value=f.kisaAd||'';
+  document.getElementById('fVergiDairesi').value=f.vergiDairesi||'';
+  document.getElementById('fVkn').value=f.vkn||'';
+  document.getElementById('fTelefon').value=f.telefon||'';
+  document.getElementById('fEmail').value=f.email||'';
+  document.getElementById('fWebsite').value=f.website||'';
+  document.getElementById('fYetkili').value=f.yetkili||'';
+  document.getElementById('fAdres').value=f.adres||'';
+  document.getElementById('fIban').value=f.iban||'';
+  document.getElementById('fBanka').value=f.banka||'';
+  document.getElementById('fMersis').value=f.mersis||'';
+  applyFirmaLogo(f.logo);
+}
+function saveFirma(){
+  const prev=getFirma();
+  const rec={
+    unvan:document.getElementById('fUnvan').value,
+    kisaAd:document.getElementById('fKisaAd').value,
+    vergiDairesi:document.getElementById('fVergiDairesi').value,
+    vkn:document.getElementById('fVkn').value,
+    telefon:document.getElementById('fTelefon').value,
+    email:document.getElementById('fEmail').value,
+    website:document.getElementById('fWebsite').value,
+    yetkili:document.getElementById('fYetkili').value,
+    adres:document.getElementById('fAdres').value,
+    iban:document.getElementById('fIban').value,
+    banka:document.getElementById('fBanka').value,
+    mersis:document.getElementById('fMersis').value,
+    logo:prev.logo||''
+  };
+  setFirma(rec);applyFirmaBranding();toast('Firma bilgileri kaydedildi');
+}
+function handleFirmaLogo(ev){
+  const f=ev.target.files[0];if(!f)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const data=getFirma();data.logo=e.target.result;setFirma(data);applyFirmaLogo(data.logo);applyFirmaBranding();
+  };
+  reader.readAsDataURL(f);
+}
+function clearFirmaLogo(){
+  const data=getFirma();data.logo='';setFirma(data);applyFirmaLogo('');applyFirmaBranding();
+}
+function applyFirmaLogo(src){
+  const img=document.getElementById('firmaLogoPreview');
+  const ph=document.getElementById('firmaLogoPlaceholder');
+  if(!img)return;
+  if(src){img.src=src;img.classList.remove('hidden');ph.classList.add('hidden');}
+  else{img.classList.add('hidden');ph.classList.remove('hidden');}
+}
+function applyFirmaBranding(){
+  const f=getFirma();
+  const ad=f.kisaAd||f.unvan||'Miciro Çağı';
+  const alt=f.unvan&&f.kisaAd?f.unvan:'LTD. ŞTİ.';
+  const sAd=document.getElementById('sidebarFirmaAd');
+  const sAlt=document.getElementById('sidebarFirmaAlt');
+  const hAd=document.getElementById('headerFirmaAd');
+  if(sAd)sAd.textContent=ad;
+  if(sAlt)sAlt.textContent=alt;
+  if(hAd)hAd.textContent=f.unvan||'Miciro Çağı LTD. ŞTİ.';
+  const img=document.getElementById('sidebarLogoImg');
+  const ic=document.getElementById('sidebarLogoIcon');
+  if(f.logo){img.src=f.logo;img.classList.remove('hidden');ic.classList.add('hidden');}
+  else{img.classList.add('hidden');ic.classList.remove('hidden');}
+}
+
+// ============ EXCEL EXPORT / IMPORT ============
+const COLMAP={
+  katar:[
+    {key:'tarih',headers:['tarih','date'],label:'Tarih'},
+    {key:'fisNo',headers:['fis no','fiş no','fisno','fiş numarası'],label:'Fiş No'},
+    {key:'aciklama',headers:['açıklama','aciklama','description'],label:'Açıklama'},
+    {key:'cari',headers:['cari','cari adı','unvan'],label:'Cari'},
+    {key:'urun',headers:['ürün','urun','ürün adı'],label:'Ürün'},
+    {key:'miktar',headers:['miktar','ton','miktar (ton)','miktar(ton)'],label:'Miktar'},
+    {key:'birimFiyat',headers:['birim fiyat','birimfiyat','fiyat'],label:'Birim Fiyat'},
+    {key:'kdvsiz',headers:["kdv'siz","kdvsiz","kdv siz"],label:"KDV'siz"},
+    {key:'kdvli',headers:["kdv'li","kdvli","kdv li"],label:"KDV'li"}
+  ],
+  cariler:[
+    {key:'ad',headers:['cari adı','cari adi','ad','unvan','cari'],label:'Cari Adı'},
+    {key:'telefon',headers:['telefon','tel','phone'],label:'Telefon'},
+    {key:'plaka',headers:['plaka'],label:'Plaka'},
+    {key:'onOdeme',headers:['ön ödeme','on odeme','onödeme','onodeme'],label:'Ön Ödeme'}
+  ],
+  gelirgider:[
+    {key:'tarih',headers:['tarih'],label:'Tarih'},
+    {key:'tur',headers:['tür','tur','tip'],label:'Tür'},
+    {key:'aciklama',headers:['açıklama','aciklama'],label:'Açıklama'},
+    {key:'kaynak',headers:['kaynak'],label:'Kaynak'},
+    {key:'tutar',headers:['tutar','miktar'],label:'Tutar'}
+  ],
+  yakit:[
+    {key:'tarih',headers:['tarih'],label:'Tarih'},
+    {key:'fisNo',headers:['fiş no','fis no','fisno'],label:'Fiş No'},
+    {key:'plaka',headers:['plaka'],label:'Plaka'},
+    {key:'sofor',headers:['şoför','sofor','soför'],label:'Şoför'},
+    {key:'teslimEden',headers:['teslim eden','teslimeden'],label:'Teslim Eden'},
+    {key:'saat',headers:['saat'],label:'Saat'},
+    {key:'km',headers:['km'],label:'KM'},
+    {key:'lt',headers:['lt','litre'],label:'LT'},
+    {key:'birimFiyat',headers:['birim fiyat','birimfiyat'],label:'Birim Fiyat'},
+    {key:'toplamFiyat',headers:['toplam','toplam fiyat'],label:'Toplam'}
+  ],
+  personel:[
+    {key:'ad',headers:['ad soyad','ad','isim'],label:'Ad Soyad'},
+    {key:'tc',headers:['tc no','tc','tckn'],label:'TC No'},
+    {key:'telefon',headers:['telefon','tel'],label:'Telefon'},
+    {key:'gorev',headers:['görev','gorev'],label:'Görev'},
+    {key:'baslangic',headers:['başlangıç','baslangic','tarih'],label:'Başlangıç'}
+  ],
+  faturalar:[
+    {key:'tarih',headers:['tarih'],label:'Tarih'},
+    {key:'faturaNo',headers:['fatura no','faturano'],label:'Fatura No'},
+    {key:'unvan',headers:['ünvan','unvan'],label:'Ünvan'},
+    {key:'vkn',headers:['vkn','tckn','vkn/tckn'],label:'VKN/TCKN'},
+    {key:'urunCinsi',headers:['ürün','urun','ürün cinsi'],label:'Ürün'},
+    {key:'miktar',headers:['miktar','ton','miktar(ton)'],label:'Miktar'},
+    {key:'birimFiyat',headers:['birim fiyat'],label:'Birim Fiyat'},
+    {key:'kdvsiz',headers:["kdv'siz","kdvsiz"],label:"KDV'siz"},
+    {key:'kdvli',headers:["kdv'li","kdvli"],label:"KDV'li"}
+  ],
+  irsaliye:[
+    {key:'tarih',headers:['tarih'],label:'Tarih'},
+    {key:'faturaNo',headers:['irsaliye no','irsaliyeno','fatura no'],label:'İrsaliye No'},
+    {key:'unvan',headers:['ünvan','unvan'],label:'Ünvan'},
+    {key:'vkn',headers:['vkn','tckn'],label:'VKN/TCKN'},
+    {key:'urunCinsi',headers:['ürün','urun','ürün cinsi'],label:'Ürün'},
+    {key:'miktar',headers:['miktar','ton'],label:'Miktar'},
+    {key:'birimFiyat',headers:['birim fiyat'],label:'Birim Fiyat'},
+    {key:'kdvsiz',headers:["kdv'siz","kdvsiz"],label:"KDV'siz"},
+    {key:'kdvli',headers:["kdv'li","kdvli"],label:"KDV'li"}
+  ],
+  sanayi:[
+    {key:'tarih',headers:['tarih'],label:'Tarih'},
+    {key:'fisFaturaNo',headers:['fiş/fatura no','fis/fatura no','fiş no','fatura no'],label:'Fiş/Fatura No'},
+    {key:'aciklama',headers:['açıklama','aciklama'],label:'Açıklama'},
+    {key:'teslimAlan',headers:['teslim alan'],label:'Teslim Alan'},
+    {key:'miktar',headers:['miktar'],label:'Miktar'},
+    {key:'fiyat',headers:['fiyat'],label:'Fiyat'},
+    {key:'alinanOdeme',headers:['alınan ödeme','alinan odeme','alınan'],label:'Alınan Ödeme'},
+    {key:'verilenOdeme',headers:['verilen ödeme','verilen odeme','verilen'],label:'Verilen Ödeme'}
+  ],
+  tesis:[
+    {key:'tarih',headers:['tarih'],label:'Tarih'},
+    {key:'baslamaSaati',headers:['başlama','baslama','işe başlama','baslama saati'],label:'Başlama'},
+    {key:'paydosSaati',headers:['paydos','paydos saati'],label:'Paydos'},
+    {key:'calisilmayanSure',headers:['çalışılmayan süre','calisilmayan sure','çalışılmayan'],label:'Çalışılmayan Süre'},
+    {key:'aciklamalar',headers:['açıklamalar','aciklamalar','açıklama'],label:'Açıklamalar'}
+  ]
+};
+
+function normHead(s){return String(s||'').toLowerCase().replace(/ı/g,'i').replace(/ş/g,'s').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o').replace(/ç/g,'c').replace(/[^a-z0-9]/g,'');}
+function excelDate(val){
+  if(val==null||val==='')return '';
+  if(typeof val==='number'&&typeof XLSX!=='undefined'&&XLSX.SSF&&XLSX.SSF.parse_date_code){
+    const d=XLSX.SSF.parse_date_code(val);
+    if(d)return d.y+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0');
+  }
+  if(val instanceof Date)return val.toISOString().split('T')[0];
+  const s=String(val).trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.substring(0,10);
+  const m=s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})/);
+  if(m)return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+  return s;
+}
+function downloadXlsx(rows,filename){
+  if(typeof XLSX==='undefined'){toast('Excel kütüphanesi yüklenemedi','error');return;}
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Veriler');
+  XLSX.writeFile(wb,filename+'.xlsx');
+  toast('Excel indirildi');
+}
+function sheetFrom(data,cols){
+  return data.map(row=>{
+    const o={};
+    cols.forEach(c=>{
+      let v=row[c.key];
+      if(Array.isArray(v))v=v.join(' | ');
+      o[c.label]=v==null?'':v;
+    });
+    return o;
+  });
+}
+function exportExcel(kind){
+  if(kind==='katar')return downloadXlsx(sheetFrom(getD('katar'),COLMAP.katar),'katar_fisleri');
+  if(kind==='cariler'){
+    const katar=getD('katar');
+    const rows=getD('cariler').map(c=>{
+      const toplam=katar.filter(k=>k.cari===c.ad).reduce((s,k)=>s+(parseFloat(k.kdvli)||0),0);
+      return {'Cari Adı':c.ad,Telefon:c.telefon,Plaka:c.plaka,'Ön Ödeme':c.onOdeme,Bakiye:toplam-(parseFloat(c.onOdeme)||0)};
+    });
+    return downloadXlsx(rows,'cariler');
+  }
+  if(kind==='gelirgider'){
+    const gelirler=getD('gelirler').map(g=>({Tarih:g.tarih,Tür:'Gelir',Açıklama:g.aciklama,Kaynak:g.kaynak,Tutar:g.tutar}));
+    const giderler=getD('giderler').map(g=>({Tarih:g.tarih,Tür:'Gider',Açıklama:g.aciklama,Kaynak:g.kaynak,Tutar:g.tutar}));
+    return downloadXlsx([...gelirler,...giderler],'gelir_gider');
+  }
+  if(kind==='yakit')return downloadXlsx(sheetFrom(getD('yakit'),COLMAP.yakit),'yakit_kayitlari');
+  if(kind==='personel'){
+    if(typeof XLSX==='undefined'){toast('Excel kütüphanesi yüklenemedi','error');return;}
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sheetFrom(getD('personeller'),COLMAP.personel)),'Ozluk');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(getD('izinler').map(p=>({Personel:p.personel,Baslangic:p.baslangic,Bitis:p.bitis,Gun:p.gun,Aciklama:p.aciklama}))),'Izin');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(getD('giriscikisler').map(p=>({Personel:p.personel,Tarih:p.tarih,Giris:p.giris,Cikis:p.cikis,CikisSebebi:p.cikisSebebi}))),'GirisCikis');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(getD('maaslar').map(p=>({Personel:p.personel,AyYil:p.ayYil,Banka:p.bankadan,Elden:p.elden,MesaaiSaat:p.mesaaiSaat,MesaaiTutar:p.mesaaiTutar,NetMaas:p.netMaas}))),'Maas');
+    XLSX.writeFile(wb,'personel.xlsx');toast('Excel indirildi');return;
+  }
+  if(kind==='faturalar')return downloadXlsx(sheetFrom(getD('faturalar'),COLMAP.faturalar),'faturalar');
+  if(kind==='irsaliye')return downloadXlsx(sheetFrom(getD('irsaliyeler'),COLMAP.irsaliye),'irsaliyeler');
+  if(kind==='sevk')return downloadXlsx(getD('sevkfisleri').map(d=>({'Dosya Adı':d.name,BoyutKB:(d.size/1024).toFixed(1),'Yüklenme Tarihi':d.date})),'sevk_fisleri');
+  if(kind==='sanayi')return downloadXlsx(sheetFrom(getD('sanayigiderleri'),COLMAP.sanayi),'sanayi_giderleri');
+  if(kind==='tesis')return downloadXlsx(sheetFrom(getD('tesiscalisma'),COLMAP.tesis),'tesis_calisma');
+  if(kind==='firma'){
+    const f=getFirma();
+    return downloadXlsx([{Unvan:f.unvan,KisaAd:f.kisaAd,VergiDairesi:f.vergiDairesi,VKN:f.vkn,Telefon:f.telefon,Eposta:f.email,Website:f.website,Yetkili:f.yetkili,Adres:f.adres,IBAN:f.iban,Banka:f.banka,Mersis:f.mersis}],'firma_bilgileri');
+  }
+}
+function exportAllData(){
+  if(typeof XLSX==='undefined'){toast('Excel kütüphanesi yüklenemedi','error');return;}
+  const wb=XLSX.utils.book_new();
+  const add=(name,rows)=>{if(rows&&rows.length)XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),name);}
+  add('Katar',sheetFrom(getD('katar'),COLMAP.katar));
+  add('Cariler',getD('cariler').map(c=>({'Cari Adı':c.ad,Telefon:c.telefon,Plaka:c.plaka,'Ön Ödeme':c.onOdeme})));
+  add('Gelir',getD('gelirler').map(g=>({Tarih:g.tarih,Tür:'Gelir',Açıklama:g.aciklama,Kaynak:g.kaynak,Tutar:g.tutar})));
+  add('Gider',getD('giderler').map(g=>({Tarih:g.tarih,Tür:'Gider',Açıklama:g.aciklama,Kaynak:g.kaynak,Tutar:g.tutar})));
+  add('Yakit',sheetFrom(getD('yakit'),COLMAP.yakit));
+  add('Personel',sheetFrom(getD('personeller'),COLMAP.personel));
+  add('Izin',getD('izinler').map(p=>({Personel:p.personel,Baslangic:p.baslangic,Bitis:p.bitis,Gun:p.gun,Aciklama:p.aciklama})));
+  add('GirisCikis',getD('giriscikisler').map(p=>({Personel:p.personel,Tarih:p.tarih,Giris:p.giris,Cikis:p.cikis,CikisSebebi:p.cikisSebebi})));
+  add('Maas',getD('maaslar').map(p=>({Personel:p.personel,AyYil:p.ayYil,Banka:p.bankadan,Elden:p.elden,MesaaiSaat:p.mesaaiSaat,MesaaiTutar:p.mesaaiTutar,NetMaas:p.netMaas})));
+  add('Faturalar',sheetFrom(getD('faturalar'),COLMAP.faturalar));
+  add('Irsaliye',sheetFrom(getD('irsaliyeler'),COLMAP.irsaliye));
+  add('Sanayi',sheetFrom(getD('sanayigiderleri'),COLMAP.sanayi));
+  add('Tesis',sheetFrom(getD('tesiscalisma'),COLMAP.tesis));
+  const f=getFirma();
+  add('Firma',[{Unvan:f.unvan,KisaAd:f.kisaAd,VergiDairesi:f.vergiDairesi,VKN:f.vkn,Telefon:f.telefon,Eposta:f.email,Website:f.website,Yetkili:f.yetkili,Adres:f.adres,IBAN:f.iban,Banka:f.banka,Mersis:f.mersis}]);
+  XLSX.writeFile(wb,'miciro_cagi_tum_veriler.xlsx');
+  toast('Tüm veriler indirildi');
+}
+
+let importKind=null;
+let importRows=[];
+function openImportModal(kind){
+  importKind=kind;importRows=[];
+  document.getElementById('importFile').value='';
+  document.getElementById('importPreviewWrap').classList.add('hidden');
+  document.getElementById('importConfirmBtn').disabled=true;
+  const titles={katar:'Katar Fişleri',cariler:'Cariler',gelirgider:'Gelir / Gider',yakit:'Yakıt',personel:'Personel (Özlük)',faturalar:'Faturalar',irsaliye:'İrsaliye',sanayi:'Sanayi Giderleri',tesis:'Tesis Çalışma',all:'Toplu Veri (çoklu sayfa)'};
+  document.getElementById('importTitle').textContent='Excel İçe Aktar — '+(titles[kind]||kind);
+  const cols=COLMAP[kind==='all'?'katar':(kind==='personel'?'personel':kind)];
+  document.getElementById('importExpected').innerHTML=cols?('<b>Beklenen başlıklar:</b> '+cols.map(c=>c.label).join(', ')):'Çok sayfalı yedek dosyası yükleyebilirsiniz (Katar, Cariler, Gelir, Gider vb. sayfa adları).';
+  document.getElementById('importOverlay').classList.add('show');
+  const dz=document.getElementById('importDropZone');
+  dz.ondragover=e=>{e.preventDefault();dz.classList.add('dragover');};
+  dz.ondragleave=()=>dz.classList.remove('dragover');
+  dz.ondrop=e=>{e.preventDefault();dz.classList.remove('dragover');if(e.dataTransfer.files[0])parseImportFile(e.dataTransfer.files[0]);};
+}
+function closeImportModal(){document.getElementById('importOverlay').classList.remove('show');}
+function onImportFile(ev){if(ev.target.files[0])parseImportFile(ev.target.files[0]);}
+function mapRow(raw,cols){
+  const keys=Object.keys(raw);
+  const rec={id:genId()};
+  cols.forEach(col=>{
+    let found=null;
+    for(const k of keys){
+      const nk=normHead(k);
+      if(col.headers.some(h=>normHead(h)===nk)||normHead(col.label)===nk||normHead(col.key)===nk){found=raw[k];break;}
+    }
+    if(col.key==='tarih'||col.key==='baslangic'||col.key==='bitis')rec[col.key]=excelDate(found);
+    else if(col.key==='aciklamalar')rec[col.key]=found?String(found).split('|').map(s=>s.trim()).filter(Boolean):[];
+    else rec[col.key]=found==null?'':found;
+  });
+  return rec;
+}
+function parseImportFile(file){
+  if(typeof XLSX==='undefined'){toast('Excel kütüphanesi yüklenemedi','error');return;}
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+      if(importKind==='all'){
+        importRows={_multi:true,sheets:{}};
+        const nameMap={katar:'katar',cariler:'cariler',gelir:'gelirler',gider:'giderler',yakit:'yakit',personel:'personeller',ozluk:'personeller',izin:'izinler',giriscikis:'giriscikisler',maas:'maaslar',faturalar:'faturalar',irsaliye:'irsaliyeler',sanayi:'sanayigiderleri',tesis:'tesiscalisma'};
+        wb.SheetNames.forEach(sn=>{
+          const json=XLSX.utils.sheet_to_json(wb.Sheets[sn]);
+          const key=nameMap[normHead(sn)]||null;
+          if(key)importRows.sheets[key]=json;
+        });
+        const total=Object.values(importRows.sheets).reduce((s,a)=>s+a.length,0);
+        document.getElementById('importCount').textContent=total+' ('+Object.keys(importRows.sheets).length+' sayfa)';
+        document.getElementById('importPreviewTable').innerHTML='<thead><tr><th>Sayfa</th><th>Kayıt</th></tr></thead><tbody>'+Object.keys(importRows.sheets).map(k=>`<tr><td>${k}</td><td>${importRows.sheets[k].length}</td></tr>`).join('')+'</tbody>';
+      }else{
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        const json=XLSX.utils.sheet_to_json(ws);
+        const cols=COLMAP[importKind]||COLMAP.katar;
+        importRows=json.map(r=>mapRow(r,cols));
+        document.getElementById('importCount').textContent=importRows.length;
+        const preview=importRows.slice(0,8);
+        const heads=cols.map(c=>c.label);
+        document.getElementById('importPreviewTable').innerHTML='<thead><tr>'+heads.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+preview.map(r=>'<tr>'+cols.map(c=>'<td>'+esc(Array.isArray(r[c.key])?r[c.key].join(' | '):r[c.key])+'</td>').join('')+'</tr>').join('')+'</tbody>';
+      }
+      document.getElementById('importPreviewWrap').classList.remove('hidden');
+      document.getElementById('importConfirmBtn').disabled=false;
+    }catch(err){toast('Dosya okunamadı: '+err.message,'error');}
+  };
+  reader.readAsArrayBuffer(file);
+}
+function confirmImport(){
+  if(!importRows)return;
+  if(importRows._multi){
+    let n=0;
+    Object.keys(importRows.sheets).forEach(store=>{
+      const colsKey=store==='personeller'?'personel':store==='gelirler'||store==='giderler'?'gelirgider':store==='irsaliyeler'?'irsaliye':store==='sanayigiderleri'?'sanayi':store==='tesiscalisma'?'tesis':store==='cariler'?'cariler':store==='yakit'?'yakit':store==='faturalar'?'faturalar':'katar';
+      const cols=COLMAP[colsKey];
+      if(!cols)return;
+      let data=getD(store);
+      importRows.sheets[store].forEach(raw=>{
+        const rec=mapRow(raw,cols);
+        if(store==='gelirler'||store==='giderler'){
+          const tur=String(raw.Tür||raw.Tur||raw.tür||'').toLowerCase();
+          if(store==='gelirler'&&tur.includes('gider'))return;
+          if(store==='giderler'&&tur.includes('gelir'))return;
+        }
+        data.push(rec);n++;
+      });
+      setD(store,data);
+    });
+    closeImportModal();renderPageData(activePage);toast(n+' kayıt içe aktarıldı');return;
+  }
+  const kind=importKind;
+  const store={katar:'katar',cariler:'cariler',yakit:'yakit',personel:'personeller',faturalar:'faturalar',irsaliye:'irsaliyeler',sanayi:'sanayigiderleri',tesis:'tesiscalisma'}[kind];
+  if(kind==='gelirgider'){
+    let gelirler=getD('gelirler');let giderler=getD('giderler');
+    importRows.forEach(r=>{
+      const tur=String(r.tur||'').toLowerCase();
+      const rec={id:r.id,tarih:r.tarih,aciklama:r.aciklama,kaynak:r.kaynak,tutar:r.tutar};
+      if(tur.includes('gider')){giderler.push(rec);setKasa(getKasa()-(parseFloat(r.tutar)||0));}
+      else{gelirler.push(rec);setKasa(getKasa()+(parseFloat(r.tutar)||0));}
+    });
+    setD('gelirler',gelirler);setD('giderler',giderler);
+  }else if(kind==='tesis'){
+    let data=getD('tesiscalisma');
+    importRows.forEach(r=>{
+      let dk=0;
+      const s=String(r.calisilmayanSure||'');
+      const hm=s.match(/(\d+)\s*saat/i);const dm=s.match(/(\d+)\s*d[ka]/i);
+      if(hm)dk+=parseInt(hm[1],10)*60;if(dm)dk+=parseInt(dm[1],10);
+      if(!dk&&/^\d+$/.test(s))dk=parseInt(s,10);
+      r.calisilmayanDakika=dk;r.calisilmayanSure=formatSure(dk);
+      if(!Array.isArray(r.aciklamalar))r.aciklamalar=r.aciklamalar?String(r.aciklamalar).split('|').map(x=>x.trim()).filter(Boolean):[];
+      data.push(r);
+    });
+    setD('tesiscalisma',data);
+  }else if(store){
+    let data=getD(store);
+    importRows.forEach(r=>data.push(r));
+    setD(store,data);
+    if(kind==='sanayi'){
+      importRows.forEach(r=>{
+        setKasa(getKasa()+(parseFloat(r.alinanOdeme)||0)-(parseFloat(r.verilenOdeme)||0));
+      });
+    }
+  }
+  const n=importRows.length;
+  closeImportModal();renderPageData(activePage);toast(n+' kayıt içe aktarıldı');
+}
+
+// ============ GENERIC ============
+function deleteItem(key,id){
+  if(!confirm('Silmek istediğinize emin misiniz?'))return;
+  let data=getD(key);data=data.filter(d=>d.id!==id);setD(key,data);
+  if(key==='cariler')renderCariler();
+  else if(key==='katar')renderKatar();
+  else if(key==='personeller'||key==='izinler'||key==='giriscikisler'||key==='maaslar')renderPersonel();
+  else if(key==='yakit')renderYakit();
+  else if(key==='faturalar')renderFaturalar();
+  else if(key==='irsaliyeler')renderIrsaliye();
+  else if(key==='sanayigiderleri')renderSanayi();
+  else if(key==='tesiscalisma')renderTesis();
+}
+function showModal(html){document.getElementById('modalBox').innerHTML=html;document.getElementById('modalOverlay').classList.add('show');}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('show');}
+function toggleSidebar(){
+  const sb=document.getElementById('sidebar');
+  const ov=document.getElementById('mobileOverlay');
+  sb.classList.toggle('collapsed');
+  ov.classList.toggle('show');
+}
+function toggleProfile(){
+  const user=firebase.auth().currentUser;
+  const html=`<h3 class="font-bold text-lg mb-4">Profil</h3>
+  <div class="text-center py-4">
+    <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3"><i class="fas fa-user text-blue-600 text-2xl"></i></div>
+    <p class="font-semibold text-gray-800">${esc(user&&(user.displayName||user.email)||'')}</p>
+    <p class="text-xs text-gray-400 mt-1">${esc(user&&user.email||'')}</p>
+  </div>
+  <div class="flex gap-2 mt-4 justify-center">
+    <button onclick="closeModal()" class="btn btn-gray">Kapat</button>
+    <button onclick="doLogout();closeModal()" class="btn btn-red"><i class="fas fa-sign-out-alt"></i> Çıkış Yap</button>
+  </div>`;
+  showModal(html);
+}
+
+// ============ INIT ============
+function initApp(){
+  if(window.innerWidth<1024)document.getElementById('sidebar').classList.add('collapsed');
+  applyFirmaBranding();
+  openPage('dashboard','Dashboard');
+  updateHeaderKasa();
+}
+firebase.auth().onAuthStateChanged(user=>{
+  if(user){
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('mainApp').classList.remove('hidden');
+    document.getElementById('mainApp').style.display='flex';
+    initApp();
+  }
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeModal();closeResetModal();closeImportModal();closeTesisDescDialog();}
+});
+</script>
+</body>
+</html>
